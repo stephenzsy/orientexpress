@@ -1,6 +1,10 @@
 namespace java com.coldblossom.darius
 namespace rb ColdBlossom.Darius
 
+const i32 MAJOR_VERSION = 1
+const i32 MINOR_VERSION = 0
+const i32 PATCH_VERSION = 0
+
 enum StatusCode {
   UNKNOWN,
   SUCCESS,
@@ -60,7 +64,7 @@ service ArticleManager {
 
   string health()
 
-  string version()
+  list<i32> version()
 
   GetOriginalDocumentResult getOriginalDocument(1: GetOriginalDocumentRequest request) throws (1: ServiceException e)
 

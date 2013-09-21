@@ -5,9 +5,15 @@
 #
 
 require 'thrift'
-require 'article_manager_types'
+require_relative 'article_manager_types'
 
 module ColdBlossom
   module Darius
+    MAJOR_VERSION = 1
+
+    MINOR_VERSION = 0
+
+    PATCH_VERSION = 0
+
   end
 end

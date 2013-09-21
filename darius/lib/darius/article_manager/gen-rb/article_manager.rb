@@ -5,7 +5,7 @@
 #
 
 require 'thrift'
-require 'article_manager_types'
+require_relative 'article_manager_types'
 
 module ColdBlossom
   module Darius
@@ -144,7 +144,7 @@ module ColdBlossom
         SUCCESS = 0
 
         FIELDS = {
-          SUCCESS => {:type => ::Thrift::Types::STRING, :name => 'success'}
+          SUCCESS => {:type => ::Thrift::Types::LIST, :name => 'success', :element => {:type => ::Thrift::Types::I32}}
         }
 
         def struct_fields; FIELDS; end
