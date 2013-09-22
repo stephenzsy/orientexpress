@@ -33,6 +33,7 @@ module ColdBlossom
             {
                 :datetime => datetime,
                 :url => url,
+                :cache_partition => datetime.strftime("%Y/%m/%d-"),
                 :expire_before => datetime + 1.day + 15.minutes
             }
           end
