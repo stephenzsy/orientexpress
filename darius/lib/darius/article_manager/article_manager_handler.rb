@@ -50,10 +50,44 @@ module ColdBlossom
               cache_partition = index_info[:cache_partition]
           end
 
+          metadata_only = true
           case request.outputType
             when OutputType::S3_ARN
-              @cache_manager.get_document "#{vendor.name}:#{type}:raw", url, {:expire_before => expire_before, :expire_after => expire_after, :metadata_only => true, :cache_partition => cache_partition}
+              metadata_only = true
           end
+
+          skip_cache = false
+          cache_only = false
+
+          case request.cacheOption
+            when CacheOption::DEFAULT
+              skip_cache = false
+          end
+
+          cache_error = nil
+
+          unless skip_cache
+            begin
+              @cache_manager.get_document "#{vendor.name}:#{type}:raw", url, {
+                  :expire_before => expire_before, :expire_after => expire_after, :metadata_only => true, :cache_partition => cache_partition}
+            rescue CacheManager::Exception => e
+              cache_error = e
+            end
+
+            case cache_error.status_code
+              when :expired
+                unless cache_only
+                  raise 'TODO'
+                end
+              else
+                raise 'WTF'
+            end
+
+          end
+
+          # cache failed or no cache, retrieve from external sources
+
+          p cache_error
 
           p vendor
           p request
