@@ -19,7 +19,11 @@ module ColdBlossom
         end
 
         def get_document(topic, url, opt)
-        raise 'Not Implemented'
+          raise 'Not Implemented'
+        end
+
+        def send_document(topic, url, opt)
+          raise 'Not Implemented'
         end
 
       end
@@ -49,7 +53,6 @@ module ColdBlossom
                 :bucket_name => @bucket_name,
                 :key => s3_key
             }
-            p req
             if opt[:metadata_only]
               response = @s3_client.head_object req
             else
@@ -57,14 +60,17 @@ module ColdBlossom
               content = response[:data]
             end
             metadata = response[:meta].symbolize_keys
+
+            # to be compatible with older documents
             document_timestamp = nil
             if metadata[:timestamp]
               document_timestamp = Time.parse(metadata[:timestamp])
             elsif metadata[:retrieval_time]
               document_timestamp = Time.parse(metadata[:retrieval_time])
             end
-            if opt[:expire_before] and document_timestamp < opt[:expire_before]
-              raise CacheManager::Exception.new :expired, "Document timestamp: #{document_timestamp.utc.iso8601} is earlier than the required expiry: #{opt[:expire_before].utc.iso8601}"
+
+            if opt[:valid_after] and document_timestamp < opt[:valid_after]
+              raise CacheManager::Exception.new :not_valid, "Document timestamp: #{document_timestamp.utc.iso8601} is earlier than the required valid timestamp: #{opt[:valid_after].utc.iso8601}"
             end
             yield content, metadata
           rescue AWS::S3::Errors::NoSuchKey => e
@@ -72,6 +78,9 @@ module ColdBlossom
           rescue Exception => e
             raise e
           end
+        end
+
+        def send_document(topic, url, opt)
         end
 
         private

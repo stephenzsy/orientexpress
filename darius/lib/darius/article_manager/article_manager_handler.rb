@@ -4,6 +4,7 @@ require_relative 'gen-rb/article_manager'
 require_relative '../version'
 
 require_relative 'cache_manager'
+
 require_relative 'article_vendor'
 require_relative 'vendors/wsj'
 
@@ -15,6 +16,9 @@ module ColdBlossom
 
         def initialize config
           @cache_manager = S3CacheManager.new config
+          @vendors = {
+              'wsj' => Vendors::WSJ.new(config)
+          }
         end
 
         def version
@@ -30,14 +34,14 @@ module ColdBlossom
         end
 
         def getOriginalDocument(request)
-          vendor = ARTICLE_VENDORS[request.vendor]
+          vendor = @vendors[request.vendor]
           request.outputType ||= OutputType::S3_ARN
           request.schedulingOption ||= SchedulingOption::DEFAULT
           request.cacheOption ||= CacheOption::DEFAULT
 
           url = nil
           type = nil
-          expire_before = nil
+          valid_after = nil
           expire_after = nil
           cache_partition = nil
           case request.documentType
@@ -46,7 +50,7 @@ module ColdBlossom
               index_info = vendor.get_archive_index_info datetime, request.documentUrl
               type = 'daily_index'
               url = index_info[:url]
-              expire_before = index_info[:expire_before]
+              valid_after = index_info[:valid_after]
               cache_partition = index_info[:cache_partition]
           end
 
@@ -56,33 +60,48 @@ module ColdBlossom
               metadata_only = true
           end
 
-          skip_cache = false
+          skip_get_cache = false
+          skip_send_cache = false
           cache_only = false
 
           case request.cacheOption
             when CacheOption::DEFAULT
-              skip_cache = false
+              skip_get_cache = false
           end
 
           cache_error = nil
 
-          unless skip_cache
+          unless skip_get_cache
             begin
               @cache_manager.get_document "#{vendor.name}:#{type}:raw", url, {
-                  :expire_before => expire_before, :expire_after => expire_after, :metadata_only => true, :cache_partition => cache_partition}
+                  :valid_after => valid_after,
+                  :expire_after => expire_after,
+                  :metadata_only => true,
+                  :cache_partition => cache_partition} do |content, metadata|
+                p content
+                p metadata
+              end
             rescue CacheManager::Exception => e
               cache_error = e
             end
 
             case cache_error.status_code
-              when :expired
-                unless cache_only
+              when :not_valid
+                if cache_only
                   raise 'TODO'
                 end
               else
                 raise 'WTF'
             end
+          end
 
+          document = nil
+          vendor.get_external_document url do |doc|
+            document = doc
+          end
+
+          unless skip_send_cache
+                 @cache_manager.
           end
 
           # cache failed or no cache, retrieve from external sources
