@@ -34,115 +34,28 @@ module ColdBlossom
         end
 
         def getDocument(request)
+          begin
+            request.schedulingOption ||= SchedulingOption::DEFAULT
 
-          request.schedulingOption ||= SchedulingOption::DEFAULT
+            job = {:request => request}
 
-          job = {:request => request}
+            handle_document_info job
+            handle_get_cache job
+            handle_get_external job
+            handle_put_cache job
+            handle_result job
 
-          handle_document_info job
-          handle_get_cache job
-          handle_get_external job
-          handle_put_cache job
-          handle_result job
-
-          return job[:result]
-
-          case request.flavor
-            when DocumentFlavor::RAW
-              flavor = 'raw'
-              content_type = :html
-            when DocumentFlavor::PROCESSED_JSON
-              flavor = 'json'
-              content_type = :json
-            else
-              raise 'WTF'
-          end
-
-          url = nil
-          type = nil
-          valid_after = nil
-          expire_after = nil
-          cache_partition = nil
-          case request.documentType
-            when DocumentType::DAILY_ARCHIVE_INDEX
-              datetime = request.datetime.nil? ? Time.now : Time.parse(request.datetime)
-              index_info = vendor.get_archive_index_info datetime, request.documentUrl
-              type = 'daily_index'
-              datetime = index_info[:datetime]
-              url = index_info[:url]
-              valid_after = index_info[:valid_after]
-              cache_partition = index_info[:cache_partition]
-          end
-
-          topic = "#{vendor.name}:#{type}:#{flavor}"
-
-          metadata_only = true
-          case request.outputType
-            when OutputType::S3_ARN
-              metadata_only = true
-          end
-
-          skip_get_cache = false
-          skip_send_cache = false
-          cache_only = false
-
-          case request.cacheOption
-            when CacheOption::DEFAULT
-              skip_get_cache = false
-          end
-
-          cache_error = nil
-
-          unless skip_get_cache
-            cache_status_code = @cache_manager.get_document topic, url, {
-                :valid_after => valid_after,
-                :expire_after => expire_after,
-                :metadata_only => true,
-                :cache_partition => cache_partition} do |content, metadata, arn|
-              p content
-              p metadata
-              s3_arn = arn
-            end
-
-            case cache_status_code
-              when :success
-                # TODO: format return
-              when :not_valid, :not_exist
-                if cache_only
-                  raise 'TODO'
-                end
-              else
-                raise 'WTF'
-            end
-          end
-
-          document = nil
-          external_document_metadata = nil
-          vendor.get_external_document url do |doc, metadata|
-            document = doc
-            external_document_metadata = metadata
-          end
-
-          unless skip_send_cache
-            s3_arn = @cache_manager.put_document topic, url, document, {
-                :cache_partition => cache_partition,
-                :content_type => content_type,
-                :metadata => external_document_metadata
-            }
-          end
-
-          GetDocumentResult.new do |r|
-            r.statusCode = StatusCode::SUCCESS
-            r.timestamp = datetime
-            case request.outputType
-              when OutputType::S3_ARN
-                r.document = s3_arn
-            end
+            job[:result]
+          rescue ServiceException => e
+            raise e
+          rescue Exception => e
+            raise ServiceException :statuCode => StatusCode::FAULT, :message => e.message
+            puts e.message
+            puts e.backtrace
           end
         end
 
         private
-
         def handle_document_info(job)
           request = job[:request]
           job[:vendor] = vendor = @vendors[request.vendor]
@@ -224,7 +137,7 @@ module ColdBlossom
         def handle_result(job)
           job[:result] = GetDocumentResult.new do |r|
             r.statusCode = StatusCode::SUCCESS
-            r.timestamp = job[:datetime]
+            r.timestamp = job[:datetime].iso8601
             case job[:output_type]
               when OutputType::S3_ARN
                 r.document = job[:cache_arn]

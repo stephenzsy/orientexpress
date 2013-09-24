@@ -9,3 +9,14 @@ end
 
 desc "Run tests"
 task :default => :test
+
+task :server do
+  require 'darius/article_manager/utils/configuration_util'
+  require 'darius/article_manager/article_manager_server'
+
+  @config =  ColdBlossom::Darius::ArticleManager::Utils::ConfigurationUtil.load_config_from_file File.join(File.expand_path(File.dirname(__FILE__)), 'test', 'darius', 'article_manager', 'darius-config.yml')
+
+  server = ColdBlossom::Darius::ArticleManager::ArticleManagerServer.new @config
+  server.start
+end
+

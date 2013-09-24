@@ -34,7 +34,7 @@ module ColdBlossom
 
         end
 
-        def test_getDocument_past
+        def _test_getDocument_past
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
@@ -50,7 +50,7 @@ module ColdBlossom
         end
 
 
-        def test_getDocument_past2
+        def _test_getDocument_past2
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
