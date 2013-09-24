@@ -43,20 +43,20 @@ module ColdBlossom
           raise ::Thrift::ApplicationException.new(::Thrift::ApplicationException::MISSING_RESULT, 'version failed: unknown result')
         end
 
-        def getOriginalDocument(request)
-          send_getOriginalDocument(request)
-          return recv_getOriginalDocument()
+        def getDocument(request)
+          send_getDocument(request)
+          return recv_getDocument()
         end
 
-        def send_getOriginalDocument(request)
-          send_message('getOriginalDocument', GetOriginalDocument_args, :request => request)
+        def send_getDocument(request)
+          send_message('getDocument', GetDocument_args, :request => request)
         end
 
-        def recv_getOriginalDocument()
-          result = receive_message(GetOriginalDocument_result)
+        def recv_getDocument()
+          result = receive_message(GetDocument_result)
           return result.success unless result.success.nil?
           raise result.e unless result.e.nil?
-          raise ::Thrift::ApplicationException.new(::Thrift::ApplicationException::MISSING_RESULT, 'getOriginalDocument failed: unknown result')
+          raise ::Thrift::ApplicationException.new(::Thrift::ApplicationException::MISSING_RESULT, 'getDocument failed: unknown result')
         end
 
       end
@@ -78,15 +78,15 @@ module ColdBlossom
           write_result(result, oprot, 'version', seqid)
         end
 
-        def process_getOriginalDocument(seqid, iprot, oprot)
-          args = read_args(iprot, GetOriginalDocument_args)
-          result = GetOriginalDocument_result.new()
+        def process_getDocument(seqid, iprot, oprot)
+          args = read_args(iprot, GetDocument_args)
+          result = GetDocument_result.new()
           begin
-            result.success = @handler.getOriginalDocument(args.request)
+            result.success = @handler.getDocument(args.request)
           rescue ::ColdBlossom::Darius::ServiceException => e
             result.e = e
           end
-          write_result(result, oprot, 'getOriginalDocument', seqid)
+          write_result(result, oprot, 'getDocument', seqid)
         end
 
       end
@@ -155,12 +155,12 @@ module ColdBlossom
         ::Thrift::Struct.generate_accessors self
       end
 
-      class GetOriginalDocument_args
+      class GetDocument_args
         include ::Thrift::Struct, ::Thrift::Struct_Union
         REQUEST = 1
 
         FIELDS = {
-          REQUEST => {:type => ::Thrift::Types::STRUCT, :name => 'request', :class => ::ColdBlossom::Darius::GetOriginalDocumentRequest}
+          REQUEST => {:type => ::Thrift::Types::STRUCT, :name => 'request', :class => ::ColdBlossom::Darius::GetDocumentRequest}
         }
 
         def struct_fields; FIELDS; end
@@ -171,13 +171,13 @@ module ColdBlossom
         ::Thrift::Struct.generate_accessors self
       end
 
-      class GetOriginalDocument_result
+      class GetDocument_result
         include ::Thrift::Struct, ::Thrift::Struct_Union
         SUCCESS = 0
         E = 1
 
         FIELDS = {
-          SUCCESS => {:type => ::Thrift::Types::STRUCT, :name => 'success', :class => ::ColdBlossom::Darius::GetOriginalDocumentResult},
+          SUCCESS => {:type => ::Thrift::Types::STRUCT, :name => 'success', :class => ::ColdBlossom::Darius::GetDocumentResult},
           E => {:type => ::Thrift::Types::STRUCT, :name => 'e', :class => ::ColdBlossom::Darius::ServiceException}
         }
 

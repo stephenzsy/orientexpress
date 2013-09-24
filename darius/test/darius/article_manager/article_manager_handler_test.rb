@@ -21,14 +21,16 @@ module ColdBlossom
           # Do nothing
         end
 
-        def test_getOriginalDocumentDefault
-          request = GetOriginalDocumentRequest.new do |r|
+        def test_getDocumentDefault
+          request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
+            r.flavor = DocumentFlavor::RAW
           end
 
           handler = ArticleManagerHandler.new @config
-          handler.getOriginalDocument request
+          result = handler.getDocument request
+          p result
 
         end
 

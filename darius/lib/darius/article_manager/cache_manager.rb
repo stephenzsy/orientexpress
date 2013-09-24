@@ -1,22 +1,36 @@
 require 'aws-sdk'
 require 'digest/sha2'
 require 'logger'
+require 'timeout'
 
 require_relative 'utils/credential_provider'
+
+# Override to use Signature Version 4
+module AWS
+  class S3
+    class Request
+      include AWS::Core::Signature::Version4
+
+      def add_authorization! (credentials)
+        super credentials
+      end
+
+      #noinspection RubyArgCount
+      def string_to_sign(datetime)
+        super datetime
+      end
+
+      def service
+        's3'
+      end
+    end
+  end
+end
 
 module ColdBlossom
   module Darius
     module ArticleManager
       class CacheManager
-
-        class Exception < StandardError
-          attr_accessor :status_code
-
-          def initialize(status_code, message)
-            super message
-            self.status_code = status_code
-          end
-        end
 
         def get_document(topic, url, opt)
           raise 'Not Implemented'
@@ -62,25 +76,62 @@ module ColdBlossom
             metadata = response[:meta].symbolize_keys
 
             # to be compatible with older documents
-            document_timestamp = nil
-            if metadata[:timestamp]
-              document_timestamp = Time.parse(metadata[:timestamp])
-            elsif metadata[:retrieval_time]
-              document_timestamp = Time.parse(metadata[:retrieval_time])
+            document_timestamp = Time.parse(metadata[:timestamp]) if metadata[:timestamp]
+
+            if document_timestamp.nil? or (opt[:valid_after] and document_timestamp < opt[:valid_after])
+              return :not_valid
             end
 
-            if opt[:valid_after] and document_timestamp < opt[:valid_after]
-              raise CacheManager::Exception.new :not_valid, "Document timestamp: #{document_timestamp.utc.iso8601} is earlier than the required valid timestamp: #{opt[:valid_after].utc.iso8601}"
+            if metadata[:error] == 'unavailable'
+              return :unavailable
             end
+
             yield content, metadata
+            :success
           rescue AWS::S3::Errors::NoSuchKey => e
-            return false
+            :not_exist
           rescue Exception => e
             raise e
           end
         end
 
-        def send_document(topic, url, opt)
+        def put_document(topic, url, content, opt)
+          s3_key = get_s3_key topic, url, opt
+          case opt[:content_type]
+            when :html
+              content_type = 'text/html'
+            when :json
+              content_type = 'application/json'
+          end
+          metadata = opt[:metadata]
+          metadata ||= {}
+          metadata[:source] = url
+          document_timestamp = opt[:timestamp]
+          document_timestamp ||= Time.now
+          metadata[:timestamp] = document_timestamp.utc.iso8601
+
+          opt[:storage_class] ||= 'STANDARD'
+
+          retry_count = 0
+          begin
+            @log.debug "send: #{s3_key}"
+            Timeout::timeout(5) do
+              @s3_client.put_object :bucket_name => @bucket_name,
+                                    :key => s3_key,
+                                    :data => content,
+                                    :storage_class => opt[:storage_class],
+                                    :content_length => content.bytesize,
+                                    :content_encoding => 'UTF-8',
+                                    :content_type => content_type,
+                                    :metadata => metadata
+            end
+            @log.debug "sent: #{s3_key}"
+          rescue Exception => e
+            retry_count += 1
+            retry unless retry_count > 3
+            raise e
+          end
+          "arn:aws:s3:::#{@bucket_name}/#{s3_key}"
         end
 
         private
@@ -88,24 +139,6 @@ module ColdBlossom
           "#{@s3_key_prefix}#{topic}/#{opt[:cache_partition].nil? ? '' : opt[:cache_partition]}#{Digest::SHA2.hexdigest(url)}"
         end
 
-
-        protected
-        def retrieve_from_cache(topic, key_part, url, cache_cutoff = nil, cache_cutoff_key = nil)
-          s3_key = "#{@prefix}#{topic}/#{key_part}#{Digest::SHA2.hexdigest(url)}"
-          begin
-            response = @s3_client.get_object :bucket_name => @bucket, :key => s3_key
-            content = response[:data]
-            metadata = response[:meta].symbolize_keys
-          rescue AWS::S3::Errors::NoSuchKey => e
-            return false
-          rescue Exception => e
-            raise e
-          end
-          unless cache_cutoff.nil?
-            return false if metadata[cache_cutoff_key].nil? or Time.parse(metadata[cache_cutoff_key]) < cache_cutoff
-          end
-          yield content, metadata
-        end
       end
     end
   end

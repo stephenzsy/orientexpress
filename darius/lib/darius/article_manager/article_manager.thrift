@@ -26,6 +26,11 @@ enum DocumentType {
   RSS_FEED
 }
 
+enum DocumentFlavor {
+  RAW,
+  PROCESSED_JSON
+}
+
 enum SchedulingOption {
   DEFAULT, // will attempt to get from cache, if not, schedule to get the requested resource
   NONE, // will not atttempt to schedule to get the requested resource and fail the call directly
@@ -39,17 +44,18 @@ enum CacheOption {
   REFRESH // force refresh the cache
 }
 
-struct GetOriginalDocumentRequest {
+struct GetDocumentRequest {
   1: string vendor,
   2: DocumentType documentType,
-  3: string documentUrl,
-  4: string datetime,
-  5: OutputType outputType,
-  6: SchedulingOption schedulingOption,
-  7: CacheOption cacheOption
+  3: DocumentFlavor flavor,
+  4: string documentUrl,
+  5: string datetime,
+  6: OutputType outputType,
+  7: SchedulingOption schedulingOption,
+  8: CacheOption cacheOption
 }
 
-struct GetOriginalDocumentResult {
+struct GetDocumentResult {
   1: StatusCode statusCode,
   2: string timestamp,
   3: string document
@@ -66,7 +72,7 @@ service ArticleManager {
 
   list<i32> version()
 
-  GetOriginalDocumentResult getOriginalDocument(1: GetOriginalDocumentRequest request) throws (1: ServiceException e)
+  GetDocumentResult getDocument(1: GetDocumentRequest request) throws (1: ServiceException e)
 
 }
 

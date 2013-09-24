@@ -35,6 +35,13 @@ module ColdBlossom
       VALID_VALUES = Set.new([ARTICLE, DAILY_ARCHIVE_INDEX, RSS_FEED]).freeze
     end
 
+    module DocumentFlavor
+      RAW = 0
+      PROCESSED_JSON = 1
+      VALUE_MAP = {0 => "RAW", 1 => "PROCESSED_JSON"}
+      VALID_VALUES = Set.new([RAW, PROCESSED_JSON]).freeze
+    end
+
     module SchedulingOption
       DEFAULT = 0
       NONE = 1
@@ -52,19 +59,21 @@ module ColdBlossom
       VALID_VALUES = Set.new([DEFAULT, NO_CACHE, ONLY_CACHE, REFRESH]).freeze
     end
 
-    class GetOriginalDocumentRequest
+    class GetDocumentRequest
       include ::Thrift::Struct, ::Thrift::Struct_Union
       VENDOR = 1
       DOCUMENTTYPE = 2
-      DOCUMENTURL = 3
-      DATETIME = 4
-      OUTPUTTYPE = 5
-      SCHEDULINGOPTION = 6
-      CACHEOPTION = 7
+      FLAVOR = 3
+      DOCUMENTURL = 4
+      DATETIME = 5
+      OUTPUTTYPE = 6
+      SCHEDULINGOPTION = 7
+      CACHEOPTION = 8
 
       FIELDS = {
         VENDOR => {:type => ::Thrift::Types::STRING, :name => 'vendor'},
         DOCUMENTTYPE => {:type => ::Thrift::Types::I32, :name => 'documentType', :enum_class => ::ColdBlossom::Darius::DocumentType},
+        FLAVOR => {:type => ::Thrift::Types::I32, :name => 'flavor', :enum_class => ::ColdBlossom::Darius::DocumentFlavor},
         DOCUMENTURL => {:type => ::Thrift::Types::STRING, :name => 'documentUrl'},
         DATETIME => {:type => ::Thrift::Types::STRING, :name => 'datetime'},
         OUTPUTTYPE => {:type => ::Thrift::Types::I32, :name => 'outputType', :enum_class => ::ColdBlossom::Darius::OutputType},
@@ -77,6 +86,9 @@ module ColdBlossom
       def validate
         unless @documentType.nil? || ::ColdBlossom::Darius::DocumentType::VALID_VALUES.include?(@documentType)
           raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field documentType!')
+        end
+        unless @flavor.nil? || ::ColdBlossom::Darius::DocumentFlavor::VALID_VALUES.include?(@flavor)
+          raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field flavor!')
         end
         unless @outputType.nil? || ::ColdBlossom::Darius::OutputType::VALID_VALUES.include?(@outputType)
           raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field outputType!')
@@ -92,7 +104,7 @@ module ColdBlossom
       ::Thrift::Struct.generate_accessors self
     end
 
-    class GetOriginalDocumentResult
+    class GetDocumentResult
       include ::Thrift::Struct, ::Thrift::Struct_Union
       STATUSCODE = 1
       TIMESTAMP = 2

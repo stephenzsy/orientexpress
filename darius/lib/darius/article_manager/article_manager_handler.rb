@@ -33,11 +33,23 @@ module ColdBlossom
           "OK"
         end
 
-        def getOriginalDocument(request)
+        def getDocument(request)
           vendor = @vendors[request.vendor]
           request.outputType ||= OutputType::S3_ARN
           request.schedulingOption ||= SchedulingOption::DEFAULT
           request.cacheOption ||= CacheOption::DEFAULT
+          request.flavor ||= DocumentFlavor::RAW
+
+          case request.flavor
+            when DocumentFlavor::RAW
+              flavor = 'raw'
+              content_type = :html
+            when DocumentFlavor::PROCESSED_JSON
+              flavor = 'json'
+              content_type = :json
+            else
+              raise 'WTF'
+          end
 
           url = nil
           type = nil
@@ -49,10 +61,13 @@ module ColdBlossom
               datetime = request.datetime.nil? ? Time.now : Time.parse(request.datetime)
               index_info = vendor.get_archive_index_info datetime, request.documentUrl
               type = 'daily_index'
+              datetime = index_info[:datetime]
               url = index_info[:url]
               valid_after = index_info[:valid_after]
               cache_partition = index_info[:cache_partition]
           end
+
+          topic = "#{vendor.name}:#{type}:#{flavor}"
 
           metadata_only = true
           case request.outputType
@@ -72,21 +87,19 @@ module ColdBlossom
           cache_error = nil
 
           unless skip_get_cache
-            begin
-              @cache_manager.get_document "#{vendor.name}:#{type}:raw", url, {
-                  :valid_after => valid_after,
-                  :expire_after => expire_after,
-                  :metadata_only => true,
-                  :cache_partition => cache_partition} do |content, metadata|
-                p content
-                p metadata
-              end
-            rescue CacheManager::Exception => e
-              cache_error = e
+            cache_status_code = @cache_manager.get_document topic, url, {
+                :valid_after => valid_after,
+                :expire_after => expire_after,
+                :metadata_only => true,
+                :cache_partition => cache_partition} do |content, metadata|
+              p content
+              p metadata
             end
 
-            case cache_error.status_code
-              when :not_valid
+            case cache_status_code
+              when :success
+                # TODO: format return
+              when :not_valid, :not_exist
                 if cache_only
                   raise 'TODO'
                 end
@@ -96,21 +109,30 @@ module ColdBlossom
           end
 
           document = nil
-          vendor.get_external_document url do |doc|
+          external_document_metadata = nil
+          vendor.get_external_document url do |doc, metadata|
             document = doc
+            external_document_metadata = metadata
           end
 
           unless skip_send_cache
-                 @cache_manager.
+            s3_arn = @cache_manager.put_document topic, url, document, {
+                :cache_partition => cache_partition,
+                :content_type => content_type,
+                :metadata => external_document_metadata
+            }
           end
 
-          # cache failed or no cache, retrieve from external sources
+          GetDocumentResult.new do |r|
+            r.statusCode = StatusCode::SUCCESS
+            r.timestamp = datetime
+            case request.outputType
+              when OutputType::S3_ARN
+                r.document = s3_arn
+            end
+          end
 
-          p cache_error
 
-          p vendor
-          p request
-          p datetime
         end
 
       end

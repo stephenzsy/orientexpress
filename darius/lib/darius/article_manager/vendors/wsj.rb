@@ -12,6 +12,7 @@ module ColdBlossom
           include ArticleManager::Utils::DynamoDBCookieStore
 
           VENDOR_NAME = 'wsj'
+          EXTERNAL_DOCUMENT_VERSION = '2013-09-23'
 
           Time.zone = 'America/New_York'
 
@@ -68,7 +69,10 @@ module ColdBlossom
                 p response
                 raise "Fault Retrieve"
             end
-            yield response.body
+            body = response.body
+            body.force_encoding('UTF-8')
+            raise 'Invalid UTF-8 Encoding of body' unless body.valid_encoding?
+            yield body, {:document_version => EXTERNAL_DOCUMENT_VERSION}
           end
 
         end
