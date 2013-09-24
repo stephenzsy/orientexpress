@@ -86,7 +86,7 @@ module ColdBlossom
               return :unavailable
             end
 
-            yield content, metadata
+            yield content, metadata, get_arn(s3_key)
             :success
           rescue AWS::S3::Errors::NoSuchKey => e
             :not_exist
@@ -131,10 +131,14 @@ module ColdBlossom
             retry unless retry_count > 3
             raise e
           end
-          "arn:aws:s3:::#{@bucket_name}/#{s3_key}"
+          get_arn s3_key
         end
 
         private
+        def get_arn(s3_key)
+          "arn:aws:s3:::#{@bucket_name}/#{s3_key}"
+        end
+
         def get_s3_key(topic, url, opt)
           "#{@s3_key_prefix}#{topic}/#{opt[:cache_partition].nil? ? '' : opt[:cache_partition]}#{Digest::SHA2.hexdigest(url)}"
         end

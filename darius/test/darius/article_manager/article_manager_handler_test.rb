@@ -21,8 +21,8 @@ module ColdBlossom
           # Do nothing
         end
 
-        def test_getDocumentDefault
-          request = GetDocumentRequest.new do |r|
+        def _test_getDocument_default
+        request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
             r.flavor = DocumentFlavor::RAW
@@ -31,6 +31,42 @@ module ColdBlossom
           handler = ArticleManagerHandler.new @config
           result = handler.getDocument request
           p result
+
+        end
+
+        def test_getDocument_past
+          request = GetDocumentRequest.new do |r|
+            r.vendor = 'wsj'
+            r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
+            r.flavor = DocumentFlavor::RAW
+            r.datetime = Time.parse('2011-02-01').iso8601
+            r.cacheOption = CacheOption::REFRESH
+          end
+
+          handler = ArticleManagerHandler.new @config
+          result = handler.getDocument request
+          p result
+
+        end
+
+
+        def test_getDocument_past2
+          request = GetDocumentRequest.new do |r|
+            r.vendor = 'wsj'
+            r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
+            r.flavor = DocumentFlavor::RAW
+            r.datetime = Time.parse('2011-02-01').iso8601
+            r.cacheOption = CacheOption::DEFAULT
+          end
+
+          handler = ArticleManagerHandler.new @config
+          result = handler.getDocument request
+          p result
+
+          request.outputType = OutputType::TEXT
+          result = handler.getDocument request
+
+          # p result
 
         end
 
