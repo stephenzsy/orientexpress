@@ -26,7 +26,6 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'nokogiri'
   spec.add_runtime_dependency 'aws-sdk'
   spec.add_runtime_dependency 'thrift'
-  #spec.add_runtime_dependency 'thrift_client'
   spec.add_runtime_dependency 'eventmachine'
   spec.add_runtime_dependency 'whenever'
   spec.add_runtime_dependency 'activesupport'

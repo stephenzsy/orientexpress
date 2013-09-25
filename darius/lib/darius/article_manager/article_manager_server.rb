@@ -14,8 +14,8 @@ module ColdBlossom
           processor = Processor.new(@handler)
           transport = Thrift::ServerSocket.new(@port)
           transport_factory = Thrift::BufferedTransportFactory.new
-          #protocol_factory = Thrift::BinaryProtocolFactory.new
-          server = Thrift::SimpleServer.new processor, transport, transport_factory #, protocol_factory
+          protocol_factory = Thrift::BinaryProtocolFactory.new
+          server = Thrift::ThreadPoolServer.new processor, transport, transport_factory, protocol_factory
           puts "Starting the Article Manager server..."
           server.serve()
           puts "done."
