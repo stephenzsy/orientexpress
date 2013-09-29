@@ -9,13 +9,10 @@ require 'darius/article_manager/article_manager_server'
 
 argv = ARGV.dup
 
-until argv.empty? or argv.shift == '--'
-end
 raise "Invalid argument for configuration file path: #{argv}" unless argv.length >= 1
 
 config = ColdBlossom::Darius::ArticleManager::Utils::ConfigurationUtil.load_config_from_file argv.shift
 
-Daemons.run_proc('darius-server') do
-  server = ColdBlossom::Darius::ArticleManager::ArticleManagerServer.new config
-  server.start
-end
+server = ColdBlossom::Darius::ArticleManager::ArticleManagerServer.new config
+server.start
+
