@@ -27,7 +27,6 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'aws-sdk', '>= 1.19.0'
   spec.add_runtime_dependency 'thrift'
   spec.add_runtime_dependency 'eventmachine'
-  spec.add_runtime_dependency 'whenever'
   spec.add_runtime_dependency 'activesupport'
 
 end

@@ -1,0 +1,1 @@
+darius_thrift_prod: bundle exec rake darius:server[/var/app/config/darius-config/yml]
