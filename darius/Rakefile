@@ -13,11 +13,11 @@ end
 namespace :darius do
 
   #desc "Darius Thrift Server"
-  task :server, :config_file do |t, args |
+  task :server, :config_file do |t, args|
     require 'darius/article_manager/utils/configuration_util'
     require 'darius/article_manager/article_manager_server'
 
-    config =  ColdBlossom::Darius::ArticleManager::Utils::ConfigurationUtil.load_config_from_file args[:config_file]
+    config = ColdBlossom::Darius::ArticleManager::Utils::ConfigurationUtil.load_config_from_file args[:config_file]
     server = ColdBlossom::Darius::ArticleManager::ArticleManagerServer.new config
     server.start
   end
