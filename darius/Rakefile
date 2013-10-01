@@ -7,16 +7,19 @@ Rake::TestTask.new do |t|
   t.test_files = ['test/darius/article_manager/*_test.rb']
 end
 
-desc "Run tests"
-task :default => :test
+#desc "Run tests"
+#task :default => :test
 
-task :server do
-  require 'darius/article_manager/utils/configuration_util'
-  require 'darius/article_manager/article_manager_server'
+namespace :darius do
 
-  @config =  ColdBlossom::Darius::ArticleManager::Utils::ConfigurationUtil.load_config_from_file File.join(File.expand_path(File.dirname(__FILE__)), 'test', 'darius', 'article_manager', 'darius-config.yml')
+  #desc "Darius Thrift Server"
+  task :server, :config_file do |t, args |
+    require 'darius/article_manager/utils/configuration_util'
+    require 'darius/article_manager/article_manager_server'
 
-  server = ColdBlossom::Darius::ArticleManager::ArticleManagerServer.new @config
-  server.start
+    config =  ColdBlossom::Darius::ArticleManager::Utils::ConfigurationUtil.load_config_from_file args[:config_file]
+    server = ColdBlossom::Darius::ArticleManager::ArticleManagerServer.new config
+    server.start
+  end
 end
 
