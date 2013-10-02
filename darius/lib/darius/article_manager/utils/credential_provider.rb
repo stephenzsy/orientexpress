@@ -31,7 +31,7 @@ module ColdBlossom
 
         class CredentialProvider
           def on_ec2_instance?
-            output = `ec2-metadata 2>&1`
+            output = `/opt/aws/bin/ec2-metadata 2>&1`
             return true if $?.exitstatus == 0
             false
           end
