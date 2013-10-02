@@ -118,7 +118,7 @@ module ColdBlossom
             Timeout::timeout(5) do
               @s3_client.put_object :bucket_name => @bucket_name,
                                     :key => s3_key,
-                                    :data => content,
+                                    :data => content.dup,
                                     :storage_class => opt[:storage_class],
                                     :content_length => content.bytesize,
                                     :content_encoding => 'UTF-8',

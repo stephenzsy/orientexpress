@@ -1,3 +1,6 @@
+require 'thrift'
+require 'logger'
+require_relative 'gen-rb/article_manager_types'
 require_relative 'gen-rb/article_manager_constants'
 require_relative 'gen-rb/article_manager'
 
@@ -19,6 +22,7 @@ module ColdBlossom
           @vendors = {
               'wsj' => Vendors::WSJ.new(config)
           }
+          @log = Logger.new(STDOUT)
         end
 
         def version
@@ -49,9 +53,10 @@ module ColdBlossom
           rescue ServiceException => e
             raise e
           rescue Exception => e
-            raise ServiceException :statuCode => StatusCode::FAULT, :message => e.message
+#            p e
             puts e.message
             puts e.backtrace
+            raise ServiceException.new :statusCode => StatusCode::FAULT, :message => e.message
           end
         end
 
@@ -69,7 +74,7 @@ module ColdBlossom
               job[:flavor] = 'json'
               job[:content_type] = :json
             else
-              raise ServiceException :statusCode => StatusCode::ERROR, :message => "Invalid Document Flavor: #{job[:document_flavor]}"
+              raise ServiceException.new :statusCode => StatusCode::ERROR, :message => "Invalid Document Flavor: #{job[:document_flavor]}"
           end
           job[:document_type] = request.documentType
           case job[:document_type]
@@ -82,7 +87,7 @@ module ColdBlossom
               job[:cache_partition] = index_info[:cache_partition]
               job[:cache_valid_after] = index_info[:valid_after]
             else
-              raise ServiceException :statusCode => StatusCode::FAULT, :message => "Unsupported Document Type: #{job[:document_type]}"
+              raise ServiceException.new :statusCode => StatusCode::FAULT, :message => "Unsupported Document Type: #{job[:document_type]}"
           end
           job[:topic] = "#{vendor.name}:#{job[:type]}:#{job[:flavor]}"
 
@@ -105,10 +110,12 @@ module ColdBlossom
               end
               case job[:cache_status]
                 when :success # do nothing
+                  @log.debug 'Cache SUCCESS'
                 when :not_valid, :not_exist
+                  @log.debug 'Cache FAIL'
                   job[:external_retrieve] = true if job[:cache_option] == CacheOption::DEFAULT
                 else
-                  raise ServiceException :statusCode => StatusCode::FAULT, :message => "Internal Failure: Unsupported cache status: #{job[:cache_status]}"
+                  raise ServiceException.new :statusCode => StatusCode::FAULT, :message => "Internal Failure: Unsupported cache status: #{job[:cache_status]}"
               end
             when CacheOption::REFRESH, CacheOption::NO_CACHE # do nothing
               job[:external_retrieve] = true
@@ -121,6 +128,7 @@ module ColdBlossom
           return unless job[:external_retrieve]
           job[:vendor].get_external_document job[:url] do |doc, metadata|
             job[:content] = doc
+            @log.debug "External Content Encoding: #{job[:content].encoding}"
             job[:external_metadata] = metadata
           end
         end
@@ -142,6 +150,7 @@ module ColdBlossom
               when OutputType::S3_ARN
                 r.document = job[:cache_arn]
               when OutputType::TEXT
+                @log.debug job[:content].encoding.to_s
                 r.document = job[:content]
             end
           end

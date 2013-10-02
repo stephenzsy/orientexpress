@@ -25,6 +25,25 @@ module ColdBlossom
           # Do nothing
         end
 
+        def _test_client
+          transport = Thrift::BufferedTransport.new(Thrift::Socket.new(@config[:remote_host], @config[:article_manager_server][:port].to_i))
+          protocol = Thrift::BinaryProtocol.new(transport)
+          client = ArticleManager::Client.new(protocol)
+          transport.open
+          begin
+            request = GetDocumentRequest.new do |r|
+              r.vendor = 'wsj'
+              r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
+              r.flavor = DocumentFlavor::RAW
+              r.outputType = OutputType::TEXT
+            end
+            p client.health
+            p client.getDocument request
+          ensure
+            transport.close
+          end
+        end
+
         def test_start_server
           server = ArticleManagerServer.new @config
 
@@ -36,23 +55,38 @@ module ColdBlossom
 
           #client = ThriftClient.new ArticleManager::Client, "localhost:#{@config[:article_manager_server][:port]}", :retries => 2
           thread = Thread.new do
-            #server.start
+            begin
+              server.start
+            rescue Exception => e
+              p e
+              puts e.message
+              puts e.backtrace
+              raise e
+            end
           end
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
             r.flavor = DocumentFlavor::RAW
+            r.outputType = OutputType::TEXT
           end
 
           #  handler = ArticleManagerHandler.new @config
           #  result = handler.getDocument request
-          t = Thread.new do
-            sleep 2
+
+          sleep 2
+          begin
             transport.open
             p client.health
             p client.getDocument(request)
+          rescue ServiceException => se
+            p se
+            raise se
+          ensure
+            transport.close
+            sleep 2
           end
-          t.join
+
           #  p result
 
         end

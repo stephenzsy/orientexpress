@@ -22,10 +22,11 @@ module ColdBlossom
         end
 
         def _test_getDocument_default
-        request = GetDocumentRequest.new do |r|
+          request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
             r.flavor = DocumentFlavor::RAW
+            r.outputType = OutputType::TEXT
           end
 
           handler = ArticleManagerHandler.new @config
