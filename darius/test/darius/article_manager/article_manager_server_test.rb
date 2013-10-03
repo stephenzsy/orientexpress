@@ -80,7 +80,6 @@ module ColdBlossom
             p client.health
             p client.getDocument(request)
           rescue ServiceException => se
-            p se
             raise se
           ensure
             transport.close
