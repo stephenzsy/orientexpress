@@ -8,8 +8,6 @@ module ColdBlossom
     module ArticleManager
       module Vendors
         class Bloomberg < ArticleVendor
-          include ArticleManager::Utils::CookieHelper
-          include ArticleManager::Utils::DynamoDBCookieStore
 
           VENDOR_NAME = 'Bloomberg'
           EXTERNAL_DOCUMENT_VERSION = '2013-10-01'

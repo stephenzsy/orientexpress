@@ -25,7 +25,7 @@ module ColdBlossom
           # Do nothing
         end
 
-        def _test_client
+        def test_client
           transport = Thrift::BufferedTransport.new(Thrift::Socket.new(@config[:remote_host], @config[:article_manager_server][:port].to_i))
           protocol = Thrift::BinaryProtocol.new(transport)
           client = ArticleManager::Client.new(protocol)
@@ -44,7 +44,7 @@ module ColdBlossom
           end
         end
 
-        def test_start_server
+        def _test_start_server
           server = ArticleManagerServer.new @config
 
           # client code - begin
