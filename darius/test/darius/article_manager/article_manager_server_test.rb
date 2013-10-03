@@ -58,9 +58,6 @@ module ColdBlossom
             begin
               server.start
             rescue Exception => e
-              p e
-              puts e.message
-              puts e.backtrace
               raise e
             end
           end
