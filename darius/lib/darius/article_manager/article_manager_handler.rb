@@ -39,12 +39,11 @@ module ColdBlossom
 
         def getDocument(request)
           begin
-            request.schedulingOption ||= SchedulingOption::DEFAULT
-
             job = {:request => request}
 
             handle_document_info job
             handle_get_cache job
+            handle_scheduling job
             handle_get_external job
             handle_put_cache job
             handle_result job
@@ -53,7 +52,6 @@ module ColdBlossom
           rescue ServiceException => e
             raise e
           rescue Exception => e
-#            p e
             puts e.message
             puts e.backtrace
             raise ServiceException.new :statusCode => StatusCode::FAULT, :message => e.message
@@ -111,6 +109,7 @@ module ColdBlossom
               case job[:cache_status]
                 when :success # do nothing
                   @log.debug 'Cache SUCCESS'
+                  job[:external_retrieve] = false
                 when :not_valid, :not_exist
                   @log.debug 'Cache FAIL'
                   job[:external_retrieve] = true if job[:cache_option] == CacheOption::DEFAULT
@@ -124,21 +123,64 @@ module ColdBlossom
           end
         end
 
+        def handle_scheduling(job)
+          job[:schedule] = job[:request].schedulingOption
+          job[:schedule] ||= SchedulingOption::DEFAULT
+          case job[:schedule]
+            when SchedulingOption::DEFAULT
+              job[:delayed_external] = true
+            when SchedulingOption::NONE
+              job[:delayed_external] = false
+              job[:external_retrieve] = false
+            when SchedulingOption::IMMEDIATELY
+              job[:delayed_external] = false
+          end
+        end
+
         def handle_get_external(job)
           return unless job[:external_retrieve]
-          job[:vendor].get_external_document job[:url] do |doc, metadata|
-            job[:content] = doc
-            @log.debug "External Content Encoding: #{job[:content].encoding}"
-            job[:external_metadata] = metadata
+          case job[:document_flavor]
+            when DocumentFlavor::RAW
+              job[:vendor].get_external_document job[:url] do |doc, metadata|
+                job[:content] = doc
+                @log.debug "External Content Encoding: #{job[:content].encoding}"
+                job[:external_metadata] = metadata
+              end
+            when DocumentFlavor::PROCESSED_JSON
+              original_request = job[:request]
+              request = GetDocumentRequest.new do |r|
+                r.vendor = original_request.vendor
+                r.documentType = original_request.documentType
+                r.flavor = DocumentFlavor::RAW
+                r.documentUrl = original_request.documentUrl
+                r.datetime = original_request.datetime
+                r.outputType = OutputType::TEXT
+                r.schedulingOption = SchedulingOption::IMMEDIATELY
+                r.cacheOption = original_request.cacheOption
+              end
+              result = getDocument request
+              case job[:document_type]
+                when DocumentType::DAILY_ARCHIVE_INDEX
+                  job[:vendor].daily_archive_index_to_json result.document do |json_obj, metadata|
+                    job[:content] = JSON.generate json_obj
+                    job[:external_metadata] = metadata
+                  end
+                else
+                  raise ServiceException.new :statusCode => StatusCode::ERROR, :message => "Invalid Document Type: #{job[:document_type]}"
+              end
+            else
+              raise ServiceException.new :statusCode => StatusCode::ERROR, :message => "Invalid Document Flavor: #{job[:document_flavor]}"
           end
         end
 
         def handle_put_cache(job)
           return unless job[:external_retrieve]
+          storage_class = 'REDUCED_REDUNDANCY' if job[:document_flavor] == DocumentFlavor::PROCESSED_JSON
           job[:cache_arn] = @cache_manager.put_document job[:topic], job[:url], job[:content], {
               :cache_partition => job[:cache_partition],
               :content_type => job[:content_type],
-              :metadata => job[:external_metadata]
+              :metadata => job[:external_metadata],
+              :storage_class => storage_class
           }
         end
 

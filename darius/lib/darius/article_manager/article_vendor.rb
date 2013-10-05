@@ -14,6 +14,10 @@ module ColdBlossom
         def get_archive_index_info
           raise 'Not Supported'
         end
+
+        def daily_archive_index_to_json
+          raise 'Not Supported'
+        end
       end
 
     end

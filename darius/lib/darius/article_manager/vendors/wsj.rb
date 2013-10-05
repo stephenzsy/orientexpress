@@ -1,4 +1,5 @@
 require 'active_support/all'
+require 'nokogiri'
 
 require_relative '../article_vendor'
 require_relative '../utils/cookie_helper'
@@ -13,6 +14,7 @@ module ColdBlossom
 
           VENDOR_NAME = 'wsj'
           EXTERNAL_DOCUMENT_VERSION = '2013-09-23'
+          DAILY_ARCHIVE_INDEX_PROCESSOR_VERSION = '2013-10-05'
 
           Time.zone = 'America/New_York'
 
@@ -48,7 +50,6 @@ module ColdBlossom
             }
           end
 
-
           def get_external_document(url)
             uri = URI(url)
             response = nil
@@ -75,8 +76,27 @@ module ColdBlossom
             yield body, {:document_version => EXTERNAL_DOCUMENT_VERSION}
           end
 
+          def daily_archive_index_to_json(document)
+            result = {
+                :articles => [],
+            }
+            doc = Nokogiri::HTML(document)
+            archived_articles = doc.css('#archivedArticles')
+            news_item = archived_articles.css('ul.newsItem')
+            news_item.css('li').each do |item|
+              a = item.css('a').first
+              p = item.css('p').first
+              url = a['href']
+              a.remove
+              result[:articles] << {
+                  :url => url,
+                  :title => a.text.strip,
+                  :summary => p.text
+              }
+            end
+            yield result, {:document_version => EXTERNAL_DOCUMENT_VERSION, :processor_version => DAILY_ARCHIVE_INDEX_PROCESSOR_VERSION}
+          end
         end
-
       end
     end
   end
