@@ -19,7 +19,7 @@ module ColdBlossom
           ARTICLE_PROCESSOR_VERSION = '2013-09-15-04'
           ARTICLE_PROCESSOR_PATCH = 15
 
-          Time.zone = 'America/New_York'
+          TIME_ZONE = ActiveSupport::TimeZone['America/New_York']
 
           def initialize(config)
             @log = Logger.new(STDOUT)
@@ -30,12 +30,9 @@ module ColdBlossom
             set_authentication_cookies(get_stored_cookies())
           end
 
-          def get_archive_index_url datetime
-            "http://online.wsj.com/public/page/archive-#{datetime.strftime "%Y-%-m-%-d"}.html"
-          end
 
           def get_archive_index_info datetime, url = nil
-            datetime = datetime.in_time_zone.midnight
+            datetime = datetime.in_time_zone(TIME_ZONE).midnight
             index_url = get_archive_index_url datetime
 
             if url.nil?
@@ -54,7 +51,7 @@ module ColdBlossom
           end
 
           def get_article_info(datetime, url)
-            datetime = datetime.in_time_zone
+            datetime = datetime.in_time_zone TIME_ZONE
             {
                 :datetime => datetime,
                 :url => url,
@@ -62,31 +59,58 @@ module ColdBlossom
             }
           end
 
+          def handle_set_cookie(set_cookie_line)
+            cookies = {}
+            set_cookie_line.split(/,\s*/).each do |cookie_line|
+              if cookie_line.match /^(?<name>djcs_\w+)=(?<value>[^;]*)/
+                cookies[$~[:name]] = $~[:value]
+              elsif cookie_line.match /^user_type=subscribed/
+                cookies['user_type'] = 'subscribed'
+              end
+            end
+            if (cookies['djcs_auto'] and cookies['djcs_perm'] and cookies['djcs_session'] and cookies['user_type'])
+              yield [
+                  "djcs_auto=#{cookies['djcs_auto']}",
+                  "djcs_perm=#{cookies['djcs_perm']}",
+                  "djcs_session=#{cookies['djcs_session']}",
+                  "user_type=#{cookies['user_type']}"
+              ]
+            end
+          end
+
           def get_external_document(url)
-            uri = URI(url)
-            response = nil
-            Net::HTTP.start(uri.host, uri.port) do |http|
+            1.upto(5) do
+              uri = URI(url)
+              response = nil
+              http = Net::HTTP.new(uri.host, uri.port)
+              http.use_ssl = (uri.scheme == 'https')
               @log.debug(url)
-              response = http.get(uri.path, {'Cookie' => get_authentication_cookies.join('; ')})
+              http.start do |http|
+                response = http.get(uri.path, {'Cookie' => get_authentication_cookies.join('; ')})
+              end
+              case response.code
+                when '200'
+                when '302'
+                  unless response['set-cookie'].nil?
+                    handle_set_cookie response['set-cookie'] do |cookies|
+                      put_stored_cookies cookies
+                      set_authentication_cookies cookies
+                    end
+                  end
+                  url = response['location']
+                  raise 'Invalid location' unless URI.parse(url).host().end_with? 'wsj.com'
+                  next
+                else
+                  p response
+                  raise "Fault Retrieve"
+              end
+              @log.debug("request DONE")
+              body = response.body
+              body.force_encoding('UTF-8')
+              raise 'Invalid UTF-8 Encoding of body' unless body.valid_encoding?
+              yield body, {:document_version => EXTERNAL_DOCUMENT_VERSION}
+              break
             end
-            case response.code
-              when '200'
-                #when '302'
-                #handle_set_cookie response['set-cookie'] unless response['set-cookie'].nil?
-                #location = response['location']
-                #filter_redirect_location location
-                #return {:new_url => location}
-                #when '404'
-                #return {:unavailable => true}
-              else
-                p response
-                raise "Fault Retrieve"
-            end
-            @log.debug("request DONE")
-            body = response.body
-            body.force_encoding('UTF-8')
-            raise 'Invalid UTF-8 Encoding of body' unless body.valid_encoding?
-            yield body, {:document_version => EXTERNAL_DOCUMENT_VERSION}
           end
 
           def daily_archive_index_to_json(document)
@@ -125,6 +149,11 @@ module ColdBlossom
             yield r, {:document_version => EXTERNAL_DOCUMENT_VERSION, :processor_version => ARTICLE_PROCESSOR_VERSION, :processor_patch => ARTICLE_PROCESSOR_PATCH}
           end
 
+
+          private
+          def get_archive_index_url datetime
+            "http://online.wsj.com/public/page/archive-#{datetime.strftime "%Y-%-m-%-d"}.html"
+          end
 
           module Parsers
             include Utils::Parsers

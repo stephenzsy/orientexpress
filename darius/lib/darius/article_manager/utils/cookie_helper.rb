@@ -27,8 +27,9 @@ module ColdBlossom
             @state_table.items[@cookies_key].attributes['value']
           end
 
-          def set_stored_cookies(cookies)
+          def put_stored_cookies(cookies)
             @state_table.items[@cookies_key].attributes['value'] = cookies
+            @state_table.items[@cookies_key].attributes['last_updated'] = Time.now.utc.iso8601
           end
         end
       end
