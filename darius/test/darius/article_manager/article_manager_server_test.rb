@@ -44,7 +44,7 @@ module ColdBlossom
           end
         end
 
-        def _test_start_server
+        def test_start_server
           server = ArticleManagerServer.new @config
 
           # client code - begin
@@ -64,7 +64,7 @@ module ColdBlossom
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
-            r.flavor = DocumentFlavor::RAW
+            r.flavor = DocumentFlavor::PROCESSED_JSON
             r.outputType = OutputType::TEXT
           end
 

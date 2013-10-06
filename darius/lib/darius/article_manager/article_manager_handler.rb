@@ -14,7 +14,6 @@ require_relative 'vendors/wsj'
 module ColdBlossom
   module Darius
     module ArticleManager
-
       class ArticleManagerHandler
 
         def initialize config
@@ -43,7 +42,6 @@ module ColdBlossom
 
             handle_document_info job
             handle_get_cache job
-            handle_scheduling job
             handle_get_external job
             handle_put_cache job
             handle_result job
@@ -123,20 +121,6 @@ module ColdBlossom
           end
         end
 
-        def handle_scheduling(job)
-          job[:schedule] = job[:request].schedulingOption
-          job[:schedule] ||= SchedulingOption::DEFAULT
-          case job[:schedule]
-            when SchedulingOption::DEFAULT
-              job[:delayed_external] = true
-            when SchedulingOption::NONE
-              job[:delayed_external] = false
-              job[:external_retrieve] = false
-            when SchedulingOption::IMMEDIATELY
-              job[:delayed_external] = false
-          end
-        end
-
         def handle_get_external(job)
           return unless job[:external_retrieve]
           case job[:document_flavor]
@@ -155,7 +139,6 @@ module ColdBlossom
                 r.documentUrl = original_request.documentUrl
                 r.datetime = original_request.datetime
                 r.outputType = OutputType::TEXT
-                r.schedulingOption = SchedulingOption::IMMEDIATELY
                 r.cacheOption = original_request.cacheOption
               end
               result = getDocument request
@@ -192,7 +175,8 @@ module ColdBlossom
               when OutputType::S3_ARN
                 r.document = job[:cache_arn]
               when OutputType::TEXT
-                @log.debug job[:content].encoding.to_s
+                job[:content].force_encoding('UTF-8')
+                raise 'Content not valid UTF-8 encoding' unless job[:content].valid_encoding?
                 r.document = job[:content]
             end
           end

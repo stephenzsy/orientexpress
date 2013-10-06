@@ -42,14 +42,6 @@ module ColdBlossom
       VALID_VALUES = Set.new([RAW, PROCESSED_JSON]).freeze
     end
 
-    module SchedulingOption
-      DEFAULT = 0
-      NONE = 1
-      IMMEDIATELY = 2
-      VALUE_MAP = {0 => "DEFAULT", 1 => "NONE", 2 => "IMMEDIATELY"}
-      VALID_VALUES = Set.new([DEFAULT, NONE, IMMEDIATELY]).freeze
-    end
-
     module CacheOption
       DEFAULT = 0
       NO_CACHE = 1
@@ -67,8 +59,7 @@ module ColdBlossom
       DOCUMENTURL = 4
       DATETIME = 5
       OUTPUTTYPE = 6
-      SCHEDULINGOPTION = 7
-      CACHEOPTION = 8
+      CACHEOPTION = 7
 
       FIELDS = {
         VENDOR => {:type => ::Thrift::Types::STRING, :name => 'vendor'},
@@ -77,7 +68,6 @@ module ColdBlossom
         DOCUMENTURL => {:type => ::Thrift::Types::STRING, :name => 'documentUrl'},
         DATETIME => {:type => ::Thrift::Types::STRING, :name => 'datetime'},
         OUTPUTTYPE => {:type => ::Thrift::Types::I32, :name => 'outputType', :enum_class => ::ColdBlossom::Darius::OutputType},
-        SCHEDULINGOPTION => {:type => ::Thrift::Types::I32, :name => 'schedulingOption', :enum_class => ::ColdBlossom::Darius::SchedulingOption},
         CACHEOPTION => {:type => ::Thrift::Types::I32, :name => 'cacheOption', :enum_class => ::ColdBlossom::Darius::CacheOption}
       }
 
@@ -92,9 +82,6 @@ module ColdBlossom
         end
         unless @outputType.nil? || ::ColdBlossom::Darius::OutputType::VALID_VALUES.include?(@outputType)
           raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field outputType!')
-        end
-        unless @schedulingOption.nil? || ::ColdBlossom::Darius::SchedulingOption::VALID_VALUES.include?(@schedulingOption)
-          raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field schedulingOption!')
         end
         unless @cacheOption.nil? || ::ColdBlossom::Darius::CacheOption::VALID_VALUES.include?(@cacheOption)
           raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field cacheOption!')

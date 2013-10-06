@@ -36,7 +36,7 @@ module ColdBlossom
         end
 
 
-        def test_getDocument_processed_json
+        def _test_getDocument_processed_json
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX

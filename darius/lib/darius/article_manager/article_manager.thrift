@@ -31,12 +31,6 @@ enum DocumentFlavor {
   PROCESSED_JSON
 }
 
-enum SchedulingOption {
-  DEFAULT, // will attempt to get from cache, if not, schedule to get the requested resource
-  NONE, // will not atttempt to schedule to get the requested resource and fail the call directly
-  IMMEDIATELY // synchronized call
-}
-
 enum CacheOption {
   DEFAULT, // will attempt to get from cache if cache did not expire by default criteria
   NO_CACHE, // will not attempt to get a cached copy or refresh the cache
@@ -51,8 +45,7 @@ struct GetDocumentRequest {
   4: string documentUrl,
   5: string datetime,
   6: OutputType outputType,
-  7: SchedulingOption schedulingOption,
-  8: CacheOption cacheOption
+  7: CacheOption cacheOption
 }
 
 struct GetDocumentResult {
