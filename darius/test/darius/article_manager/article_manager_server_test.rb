@@ -61,21 +61,35 @@ module ColdBlossom
               raise e
             end
           end
-          request = GetDocumentRequest.new do |r|
-            r.vendor = 'wsj'
-            r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
-            r.flavor = DocumentFlavor::PROCESSED_JSON
-            r.outputType = OutputType::TEXT
-          end
-
-          #  handler = ArticleManagerHandler.new @config
-          #  result = handler.getDocument request
 
           sleep 2
           begin
             transport.open
             p client.health
-            p client.getDocument(request)
+
+            request = GetDocumentRequest.new do |r|
+              r.vendor = 'wsj'
+              r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
+              r.datetime = '2009-04-01T08:00:00Z'
+              r.flavor = DocumentFlavor::PROCESSED_JSON
+              r.outputType = OutputType::TEXT
+            end
+
+            result = client.getDocument request
+            obj = JSON.parse result.document, :symbolize_names => true
+            timestamp = result.timestamp
+            obj[:articles].each do |article|
+              request = GetDocumentRequest.new do |r|
+                r.vendor = 'wsj'
+                r.datetime = timestamp
+                r.documentType = DocumentType::ARTICLE
+                r.flavor = DocumentFlavor::PROCESSED_JSON
+                r.documentUrl = article[:url]
+                r.outputType = OutputType::S3_ARN
+              end
+              result = client.getDocument request
+              p result
+            end
           rescue ServiceException => se
             raise se
           ensure

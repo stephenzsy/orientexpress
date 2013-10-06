@@ -27,8 +27,8 @@ module ColdBlossom
             @state_table.items[@cookies_key].attributes['value']
           end
 
-          def set_stored_cookies
-
+          def set_stored_cookies(cookies)
+            @state_table.items[@cookies_key].attributes['value'] = cookies
           end
         end
       end

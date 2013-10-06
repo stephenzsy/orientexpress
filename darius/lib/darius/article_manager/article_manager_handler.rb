@@ -74,6 +74,14 @@ module ColdBlossom
           end
           job[:document_type] = request.documentType
           case job[:document_type]
+            when DocumentType::ARTICLE
+              job[:type] = 'article'
+              raise ServiceException.new :statusCode => StatusCode::ERROR, :message => "datetime must be provided in the input for article retrieval" if request.datetime.nil?
+              datetime = Time.parse request.datetime
+              article_info = vendor.get_article_info datetime, request.documentUrl
+              job[:datetime] = article_info[:datetime]
+              job[:url] = article_info[:url]
+              job[:cache_partition] = article_info[:cache_partition]
             when DocumentType::DAILY_ARCHIVE_INDEX
               job[:type] = 'daily_index'
               datetime = request.datetime.nil? ? Time.now : Time.parse(request.datetime)
@@ -143,6 +151,11 @@ module ColdBlossom
               end
               result = getDocument request
               case job[:document_type]
+                when DocumentType::ARTICLE
+                  job[:vendor].article_to_json job[:url], result.document do |json_obj, metadata|
+                    job[:content] = JSON.generate json_obj
+                    job[:external_metadata] = metadata
+                  end
                 when DocumentType::DAILY_ARCHIVE_INDEX
                   job[:vendor].daily_archive_index_to_json result.document do |json_obj, metadata|
                     job[:content] = JSON.generate json_obj
