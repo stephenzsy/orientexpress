@@ -15,8 +15,9 @@ module ColdBlossom
       FAULT = 3
       SCHEDULED = 4
       UNAVAILABLE = 5
-      VALUE_MAP = {0 => "UNKNOWN", 1 => "SUCCESS", 2 => "ERROR", 3 => "FAULT", 4 => "SCHEDULED", 5 => "UNAVAILABLE"}
-      VALID_VALUES = Set.new([UNKNOWN, SUCCESS, ERROR, FAULT, SCHEDULED, UNAVAILABLE]).freeze
+      BATCHED = 6
+      VALUE_MAP = {0 => "UNKNOWN", 1 => "SUCCESS", 2 => "ERROR", 3 => "FAULT", 4 => "SCHEDULED", 5 => "UNAVAILABLE", 6 => "BATCHED"}
+      VALID_VALUES = Set.new([UNKNOWN, SUCCESS, ERROR, FAULT, SCHEDULED, UNAVAILABLE, BATCHED]).freeze
     end
 
     module OutputType
@@ -49,6 +50,36 @@ module ColdBlossom
       REFRESH = 3
       VALUE_MAP = {0 => "DEFAULT", 1 => "NO_CACHE", 2 => "ONLY_CACHE", 3 => "REFRESH"}
       VALID_VALUES = Set.new([DEFAULT, NO_CACHE, ONLY_CACHE, REFRESH]).freeze
+    end
+
+    module ArchiveSource
+      NONE = 0
+      CACHE = 1
+      SOURCE = 2
+      EXTERNAL = 3
+      VALUE_MAP = {0 => "NONE", 1 => "CACHE", 2 => "SOURCE", 3 => "EXTERNAL"}
+      VALID_VALUES = Set.new([NONE, CACHE, SOURCE, EXTERNAL]).freeze
+    end
+
+    class ServiceException < ::Thrift::Exception
+      include ::Thrift::Struct, ::Thrift::Struct_Union
+      STATUSCODE = 1
+      MESSAGE = 2
+
+      FIELDS = {
+        STATUSCODE => {:type => ::Thrift::Types::I32, :name => 'statusCode', :enum_class => ::ColdBlossom::Darius::StatusCode},
+        MESSAGE => {:type => ::Thrift::Types::STRING, :name => 'message'}
+      }
+
+      def struct_fields; FIELDS; end
+
+      def validate
+        unless @statusCode.nil? || ::ColdBlossom::Darius::StatusCode::VALID_VALUES.include?(@statusCode)
+          raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field statusCode!')
+        end
+      end
+
+      ::Thrift::Struct.generate_accessors self
     end
 
     class GetDocumentRequest
@@ -114,14 +145,42 @@ module ColdBlossom
       ::Thrift::Struct.generate_accessors self
     end
 
-    class ServiceException < ::Thrift::Exception
+    class GetArchiveRequest
+      include ::Thrift::Struct, ::Thrift::Struct_Union
+      VENDOR = 1
+      FLAVOR = 2
+      DATE = 3
+      ARCHIVESOURCE = 4
+
+      FIELDS = {
+        VENDOR => {:type => ::Thrift::Types::STRING, :name => 'vendor'},
+        FLAVOR => {:type => ::Thrift::Types::I32, :name => 'flavor', :enum_class => ::ColdBlossom::Darius::DocumentFlavor},
+        DATE => {:type => ::Thrift::Types::STRING, :name => 'date'},
+        ARCHIVESOURCE => {:type => ::Thrift::Types::I32, :name => 'archiveSource', :optional => true, :enum_class => ::ColdBlossom::Darius::ArchiveSource}
+      }
+
+      def struct_fields; FIELDS; end
+
+      def validate
+        unless @flavor.nil? || ::ColdBlossom::Darius::DocumentFlavor::VALID_VALUES.include?(@flavor)
+          raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field flavor!')
+        end
+        unless @archiveSource.nil? || ::ColdBlossom::Darius::ArchiveSource::VALID_VALUES.include?(@archiveSource)
+          raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field archiveSource!')
+        end
+      end
+
+      ::Thrift::Struct.generate_accessors self
+    end
+
+    class GetArchiveResult
       include ::Thrift::Struct, ::Thrift::Struct_Union
       STATUSCODE = 1
-      MESSAGE = 2
+      RESOURCE = 2
 
       FIELDS = {
         STATUSCODE => {:type => ::Thrift::Types::I32, :name => 'statusCode', :enum_class => ::ColdBlossom::Darius::StatusCode},
-        MESSAGE => {:type => ::Thrift::Types::STRING, :name => 'message'}
+        RESOURCE => {:type => ::Thrift::Types::STRING, :name => 'resource'}
       }
 
       def struct_fields; FIELDS; end

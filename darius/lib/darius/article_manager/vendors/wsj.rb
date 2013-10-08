@@ -30,6 +30,10 @@ module ColdBlossom
             set_authentication_cookies(get_stored_cookies())
           end
 
+          def get_batch_date(date_str)
+            Time.parse(date_str).in_time_zone(TIME_ZONE).midnight
+          end
+
 
           def get_archive_index_info datetime, url = nil
             datetime = datetime.in_time_zone(TIME_ZONE).midnight

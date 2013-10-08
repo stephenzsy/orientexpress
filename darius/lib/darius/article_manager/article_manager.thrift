@@ -2,7 +2,7 @@ namespace java com.coldblossom.darius
 namespace rb ColdBlossom.Darius
 
 const i32 MAJOR_VERSION = 1
-const i32 MINOR_VERSION = 0
+const i32 MINOR_VERSION = 1
 const i32 PATCH_VERSION = 0
 
 enum StatusCode {
@@ -11,7 +11,8 @@ enum StatusCode {
   ERROR, // when user input is invalid
   FAULT, // when server encouters a error
   SCHEDULED, // when requested resource is scheduled
-  UNAVAILABLE // when requested resource is unavailable
+  UNAVAILABLE, // when requested resource is unavailable
+  BATCHED // when request resource is no longer available through standalone means
 }
 
 enum OutputType {
@@ -38,6 +39,11 @@ enum CacheOption {
   REFRESH // force refresh the cache
 }
 
+exception ServiceException {
+  1: StatusCode statusCode,
+  2: string message
+}
+
 struct GetDocumentRequest {
   1: string vendor,
   2: DocumentType documentType,
@@ -54,9 +60,23 @@ struct GetDocumentResult {
   3: string document
 }
 
-exception ServiceException {
+enum ArchiveSource {
+  NONE,
+  CACHE,
+  SOURCE,
+  EXTERNAL
+}
+
+struct GetArchiveRequest {
+  1: string vendor,
+  2: DocumentFlavor flavor,
+  3: string date,
+  4: optional ArchiveSource archiveSource
+}
+
+struct GetArchiveResult {
   1: StatusCode statusCode,
-  2: string message
+  2: string resource // S3 ARN
 }
 
 service ArticleManager {
@@ -67,5 +87,5 @@ service ArticleManager {
 
   GetDocumentResult getDocument(1: GetDocumentRequest request) throws (1: ServiceException e)
 
+  GetArchiveResult getArchive(1: GetArchiveRequest request) throws (1: ServiceException e)
 }
-

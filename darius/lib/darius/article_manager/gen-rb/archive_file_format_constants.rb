@@ -5,15 +5,19 @@
 #
 
 require 'thrift'
-require_relative 'article_manager_types'
+require_relative 'archive_file_format_types'
 
 module ColdBlossom
   module Darius
-    MAJOR_VERSION = 1
+    module Archive
+      MAGIC = %q"ARH1"
 
-    MINOR_VERSION = 1
+      VERSION = 1
 
-    PATCH_VERSION = 0
+      FORMAT_CODE_TEXT = 0
 
+      FORMAT_CODE_DEFLATE = 1
+
+    end
   end
 end

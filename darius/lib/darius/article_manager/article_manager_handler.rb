@@ -4,6 +4,8 @@ require_relative 'gen-rb/article_manager_types'
 require_relative 'gen-rb/article_manager_constants'
 require_relative 'gen-rb/article_manager'
 
+require_relative 'get_archive_handlers'
+
 require_relative '../version'
 
 require_relative 'cache_manager'
@@ -11,10 +13,12 @@ require_relative 'cache_manager'
 require_relative 'article_vendor'
 require_relative 'vendors/wsj'
 
+
 module ColdBlossom
   module Darius
     module ArticleManager
       class ArticleManagerHandler
+        include GetBatchHandlers
 
         def initialize config
           @cache_manager = S3CacheManager.new config
@@ -45,6 +49,23 @@ module ColdBlossom
             handle_get_external job
             handle_put_cache job
             handle_result job
+
+            job[:result]
+          rescue ServiceException => e
+            raise e
+          rescue Exception => e
+            puts e.message
+            puts e.backtrace
+            raise ServiceException.new :statusCode => StatusCode::FAULT, :message => e.message
+          end
+        end
+
+        def getArchive(request)
+          begin
+            job = {:request => request}
+
+            get_archive_handle_request job
+            get_archive_handle_check_existing job
 
             job[:result]
           rescue ServiceException => e

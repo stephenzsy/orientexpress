@@ -59,6 +59,22 @@ module ColdBlossom
           raise ::Thrift::ApplicationException.new(::Thrift::ApplicationException::MISSING_RESULT, 'getDocument failed: unknown result')
         end
 
+        def getArchive(request)
+          send_getArchive(request)
+          return recv_getArchive()
+        end
+
+        def send_getArchive(request)
+          send_message('getArchive', GetArchive_args, :request => request)
+        end
+
+        def recv_getArchive()
+          result = receive_message(GetArchive_result)
+          return result.success unless result.success.nil?
+          raise result.e unless result.e.nil?
+          raise ::Thrift::ApplicationException.new(::Thrift::ApplicationException::MISSING_RESULT, 'getArchive failed: unknown result')
+        end
+
       end
 
       class Processor
@@ -87,6 +103,17 @@ module ColdBlossom
             result.e = e
           end
           write_result(result, oprot, 'getDocument', seqid)
+        end
+
+        def process_getArchive(seqid, iprot, oprot)
+          args = read_args(iprot, GetArchive_args)
+          result = GetArchive_result.new()
+          begin
+            result.success = @handler.getArchive(args.request)
+          rescue ::ColdBlossom::Darius::ServiceException => e
+            result.e = e
+          end
+          write_result(result, oprot, 'getArchive', seqid)
         end
 
       end
@@ -178,6 +205,40 @@ module ColdBlossom
 
         FIELDS = {
           SUCCESS => {:type => ::Thrift::Types::STRUCT, :name => 'success', :class => ::ColdBlossom::Darius::GetDocumentResult},
+          E => {:type => ::Thrift::Types::STRUCT, :name => 'e', :class => ::ColdBlossom::Darius::ServiceException}
+        }
+
+        def struct_fields; FIELDS; end
+
+        def validate
+        end
+
+        ::Thrift::Struct.generate_accessors self
+      end
+
+      class GetArchive_args
+        include ::Thrift::Struct, ::Thrift::Struct_Union
+        REQUEST = 1
+
+        FIELDS = {
+          REQUEST => {:type => ::Thrift::Types::STRUCT, :name => 'request', :class => ::ColdBlossom::Darius::GetArchiveRequest}
+        }
+
+        def struct_fields; FIELDS; end
+
+        def validate
+        end
+
+        ::Thrift::Struct.generate_accessors self
+      end
+
+      class GetArchive_result
+        include ::Thrift::Struct, ::Thrift::Struct_Union
+        SUCCESS = 0
+        E = 1
+
+        FIELDS = {
+          SUCCESS => {:type => ::Thrift::Types::STRUCT, :name => 'success', :class => ::ColdBlossom::Darius::GetArchiveResult},
           E => {:type => ::Thrift::Types::STRUCT, :name => 'e', :class => ::ColdBlossom::Darius::ServiceException}
         }
 

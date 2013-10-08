@@ -58,7 +58,7 @@ module ColdBlossom
           end
         end
 
-        def test_start_server
+        def _test_start_server
           server = ArticleManagerServer.new @config
 
           # client code - begin
