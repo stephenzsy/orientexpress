@@ -2,6 +2,7 @@ require 'test/unit'
 
 require 'darius/article_manager/utils/configuration_util'
 require 'darius/article_manager/article_manager_handler'
+require 'darius/article_manager/build_archive_worker'
 
 module ColdBlossom
   module Darius
@@ -124,8 +125,16 @@ module ColdBlossom
           handler = ArticleManagerHandler.new @config
           result = handler.getArchive request
 
-          p result
+          t = Thread.new do
+            worker = BuildArchiveWorker.new
+            worker.set_config @config, {:queue => :build_archive}
+            worker.start_worker(:num_thread => 1, :max_work_unit => 1)
+          end
 
+          t.join
+
+
+          p result
 
         end
 

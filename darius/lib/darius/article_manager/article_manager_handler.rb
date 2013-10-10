@@ -12,6 +12,7 @@ require_relative 'cache_manager'
 
 require_relative 'article_vendor'
 require_relative 'vendors/wsj'
+require_relative 'build_archive_worker'
 
 
 module ColdBlossom
@@ -26,6 +27,7 @@ module ColdBlossom
               'wsj' => Vendors::WSJ.new(config)
           }
           @log = Logger.new(STDOUT)
+          BuildArchiveWorker.set_config(config, {:queue => :build_archive})
         end
 
         def version

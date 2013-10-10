@@ -6,11 +6,13 @@ module ColdBlossom
   module Darius
     module ArticleManager
       class BuildArchiveWorker
-        extend ArticleManager::Utils::Worker
+        extend ArticleManager::Utils::WorkerClient
+        include ArticleManager::Utils::WorkerServer
 
-        set_config({:config => "this is config"})
+        def perform(action, params)
+          p action
 
-        def perform(action, opt)
+          p params
         end
       end
     end
