@@ -26,7 +26,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'rack'
   spec.add_runtime_dependency 'thin'
   spec.add_runtime_dependency 'nokogiri'
-  spec.add_runtime_dependency 'aws-sdk', '>= 1.20.0'
+  spec.add_runtime_dependency 'aws-sdk', '>= 1.21.0'
   spec.add_runtime_dependency 'thrift'
   spec.add_runtime_dependency 'activesupport'
 

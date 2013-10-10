@@ -66,6 +66,7 @@ module ColdBlossom
 
             get_archive_handle_request job
             get_archive_handle_check_existing job
+            get_archive_handle_build_archive job
 
             job[:result]
           rescue ServiceException => e

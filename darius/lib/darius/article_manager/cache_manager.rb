@@ -3,7 +3,7 @@ require 'digest/sha2'
 require 'logger'
 require 'timeout'
 
-require_relative 'utils/credential_provider'
+require_relative 'utils/configuration_util'
 
 # Override to use Signature Version 4
 module AWS
@@ -51,12 +51,34 @@ module ColdBlossom
           @region = config[:region]
           @bucket_name = config[:s3_cache][:bucket]
           @s3_key_prefix = config[:s3_cache][:prefix]
-          @s3 = AWS::S3.new :credential_provider => Utils::CredentialProvider.new(config),
-                            :region => config[:region],
-                            :logger => nil,
-                            :use_ssl => true
+          @s3 = AWS::S3.new ArticleManager::Utils::ConfigurationUtil.configure_aws config
           @s3_client = @s3.client
         end
+
+        def head_archive(topic, date, opt)
+          s3_key = get_s3_key topic, date.iso8601, opt
+          req = {:bucket_name => @bucket_name, :key => s3_key}
+          begin
+            res = @s3_client.head_object req
+            metadata = response[:meta].symbolize_keys
+
+            document_timestamp = Time.parse(metadata[:timestamp]) if metadata[:timestamp]
+
+            if document_timestamp.nil? or (opt[:valid_after] and document_timestamp < opt[:valid_after])
+              return :not_valid
+            end
+
+            if metadata[:error] == 'unavailable'
+              return :unavailable
+            end
+
+            yield get_arn(s3_key), metadata
+            :success
+          rescue AWS::S3::Errors::NoSuchKey => e
+            :not_exist
+          end
+        end
+
 
         def get_document(topic, url, opt)
           s3_key = get_s3_key topic, url, opt
@@ -90,8 +112,6 @@ module ColdBlossom
             :success
           rescue AWS::S3::Errors::NoSuchKey => e
             :not_exist
-          rescue Exception => e
-            raise e
           end
         end
 

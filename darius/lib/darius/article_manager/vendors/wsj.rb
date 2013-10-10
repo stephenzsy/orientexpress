@@ -30,8 +30,13 @@ module ColdBlossom
             set_authentication_cookies(get_stored_cookies())
           end
 
-          def get_batch_date(date_str)
-            Time.parse(date_str).in_time_zone(TIME_ZONE).midnight
+          def get_archive_info(date_str)
+            date = Time.parse(date_str).in_time_zone(TIME_ZONE).midnight
+            {
+                :cache_partition => date.strftime("%Y/%m/%d-"),
+                :date => date,
+                :valid_after => date + 1.day + 15.minutes
+            }
           end
 
 

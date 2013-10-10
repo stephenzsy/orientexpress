@@ -1,3 +1,5 @@
+require_relative 'configuration_util'
+
 module ColdBlossom
   module Darius
     module ArticleManager
@@ -15,9 +17,7 @@ module ColdBlossom
         module DynamoDBCookieStore
 
           def set_cookie_store(config, vendor)
-            @dynamoDB = AWS::DynamoDB.new :credential_provider => Utils::CredentialProvider.new(config),
-                                          :region => config[:region],
-                                          :logger => nil
+            @dynamoDB = AWS::DynamoDB.new ConfigurationUtil.configure_aws config
             @cookies_key = config[:vendor][vendor.name][:state_table_key_authentication_cookies]
             @state_table = @dynamoDB.tables[config[:state_table][:table_name]]
             @state_table.load_schema
