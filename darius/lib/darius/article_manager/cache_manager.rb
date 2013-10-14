@@ -154,6 +154,10 @@ module ColdBlossom
           get_arn s3_key
         end
 
+        def download_cached_file(type, resource)
+          p type, resource
+        end
+
         private
         def get_arn(s3_key)
           "arn:aws:s3:::#{@bucket_name}/#{s3_key}"

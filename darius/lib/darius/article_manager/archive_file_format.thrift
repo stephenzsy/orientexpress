@@ -32,6 +32,7 @@ struct ContentSegment {
 struct ArchiveFileFormat {
   1: binary magic
   2: i32 version
-  3: list<IndexSegment> index_segments
-  4: list<ContentSegment> content_segments
+  3: i32 index_section_length
+  4: list<IndexSegment> index_segments
+  5: list<ContentSegment> content_segments
 }

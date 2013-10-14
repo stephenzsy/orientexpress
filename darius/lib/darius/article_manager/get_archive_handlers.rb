@@ -36,7 +36,7 @@ module ColdBlossom
 
         def get_archive_handle_build_archive(job)
           return unless job[:build_archive]
-          BuildArchiveWorker.perform_async :create, {:vendor => job[:vendor].name, :date => job[:archive_info][:date], :archive_source => job[:archive_source]}
+          BuildArchiveWorker.perform_async :create, {:vendor => job[:vendor].name, :date => job[:archive_info][:date], :flavor => job[:flavor], :archive_source => job[:archive_source]}
           p job
         end
 

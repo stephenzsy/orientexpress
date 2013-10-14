@@ -89,12 +89,14 @@ module ColdBlossom
         include ::Thrift::Struct, ::Thrift::Struct_Union
         MAGIC = 1
         VERSION = 2
-        INDEX_SEGMENTS = 3
-        CONTENT_SEGMENTS = 4
+        INDEX_SECTION_LENGTH = 3
+        INDEX_SEGMENTS = 4
+        CONTENT_SEGMENTS = 5
 
         FIELDS = {
           MAGIC => {:type => ::Thrift::Types::STRING, :name => 'magic', :binary => true},
           VERSION => {:type => ::Thrift::Types::I32, :name => 'version'},
+          INDEX_SECTION_LENGTH => {:type => ::Thrift::Types::I32, :name => 'index_section_length'},
           INDEX_SEGMENTS => {:type => ::Thrift::Types::LIST, :name => 'index_segments', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::IndexSegment}},
           CONTENT_SEGMENTS => {:type => ::Thrift::Types::LIST, :name => 'content_segments', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::ContentSegment}}
         }

@@ -99,6 +99,10 @@ module ColdBlossom
               end
               case response.code
                 when '200'
+                when '301'
+                  url = response['location']
+                  raise 'Invalid location' unless URI.parse(url).host().end_with? 'wsj.com'
+                  next
                 when '302'
                   unless response['set-cookie'].nil?
                     handle_set_cookie response['set-cookie'] do |cookies|

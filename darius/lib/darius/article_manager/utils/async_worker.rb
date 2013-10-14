@@ -1,6 +1,7 @@
 require 'monitor'
 
 require_relative 'configuration_util'
+require_relative '../article_manager_base_client'
 
 module ColdBlossom
   module Darius
@@ -16,16 +17,20 @@ module ColdBlossom
           end
 
           def submit(action, params, opt={})
-            message_obj = {:action => action, :params => params}
-            message_obj[:retry_count] = opt[:retry_count] unless opt[:retry_count].nil?
-            message_obj[:max_retry] = opt[:max_retry] unless opt[:max_retry].nil?
+            message_obj = {:action => action, :params => params, :opt => {}}
+            message_obj[:opt][:retry_count] = opt[:retry_count] unless opt[:retry_count].nil?
+            message_obj[:opt][:max_retry] = opt[:max_retry] unless opt[:max_retry].nil?
+            message_obj[:opt][:origin_time] = opt[:origin_time].utc.iso8601
             @sqs_queue.send_message(JSON.generate(message_obj))
           end
 
           def poll
             begin
               message = @sqs_queue.receive_message
-              JSON.parse message.body, :symbolize_names => true
+              return nil if message.nil?
+              obj = JSON.parse message.body, :symbolize_names => true
+              obj[:opt][:origin_time] = Time.parse obj[:opt][:origin_time] unless obj[:opt].nil? or obj[:opt][:origin_time].nil?
+              obj
             ensure
               message.delete if message
             end
@@ -38,6 +43,8 @@ module ColdBlossom
           def set_config(config, opt)
             return unless @manager.nil? or opt[:force]
             @manager = AsyncWorkManager.new config, opt[:queue]
+            @article_manager_client = ArticleManager::ArticleManagerBaseClient.new config[:remote_host], config[:article_manager_server][:port].to_i
+            @cache_manager = ArticleManager::S3CacheManager.new config
           end
 
         end
@@ -46,6 +53,7 @@ module ColdBlossom
           include Worker
 
           def perform_async(action, params, opt = {})
+            opt[:origin_time] ||= Time.now
             @manager.submit(action, params, opt)
             p opt
           end
@@ -53,6 +61,14 @@ module ColdBlossom
 
         module WorkerServer
           include Worker
+
+          class WorkerException < StandardError
+
+          end
+
+          def perform(action, params)
+            send action, params
+          end
 
           def start_worker(opt = {})
             thread_pool = []
@@ -66,21 +82,35 @@ module ColdBlossom
                 while (true)
                   #poll sqs
                   work = @manager.poll
+                  next if work.nil?
+                  work[:action] = work[:action].to_sym
+                  work_opt = work[:opt]
+                  work_opt ||= {}
+                  p work
+                  max_retry = work_opt[:max_retry]
+                  max_retry ||= DEFAULT_MAX_RETRY
                   begin
-                    result = perform(work[:action], work[:params])
-                    case result
-                      when :success
-                      when :fail
-                      when :retry # forced retry
-                      when :terminate # forced terminate
+                    status, next_work = perform(work[:action], work[:params])
+                    case status
+                      when :fail # fail, retry with default limit
+                        work_opt[:retry_count] = work_opt[:retry_count].nil? ? 1 : work_opt[:retry_count] + 1
+                        self.class.perform_async(work[:action], work[:params], work_opt) if work_opt[:retry_count] < max_retry
+                      when :retry # forced retry, disregard of retry limit
+                        work_opt[:retry_count] = work_opt[:retry_count].nil? ? 1 : work_opt[:retry_count] + 1
+                        self.class.perform_async(work[:action], work[:params], work_opt)
+                      when :terminate # forced terminate, will not retry
                       else
                         # treat like success
+                        #  self.class.perform_async(next_work[:action], next_work[:params], next_work[:opt]) unless next_work.nil?
                     end
                     work_done += 1
                     p work_done
                     break if max_work == 0 or work_done >= max_work
                   rescue Exception => e
                     # Any exception treat as fail, default retry
+                    p work_opt
+                    work_opt[:retry_count] = work_opt[:retry_count].nil? ? 1 : work_opt[:retry_count] + 1
+                    self.class.perform_async(work[:action], work[:params], work_opt) if work_opt[:retry_count] < max_retry
                   end
                 end
               end
