@@ -154,8 +154,16 @@ module ColdBlossom
           get_arn s3_key
         end
 
-        def download_cached_file(type, resource)
-          p type, resource
+        def download_cached_file(type, resource, file)
+          case type
+            when :arn
+              req = arn_to_get_request resource
+          end
+          s3_obj = @s3.buckets[req[:bucket_name]].objects[req[:key]]
+          s3_obj.read do |chunk|
+            file.write(chunk)
+          end
+          yield req[:key], s3_obj.metadata
         end
 
         private
@@ -165,6 +173,15 @@ module ColdBlossom
 
         def get_s3_key(topic, url, opt)
           "#{@s3_key_prefix}#{topic}/#{opt[:cache_partition].nil? ? '' : opt[:cache_partition]}#{Digest::SHA2.hexdigest(url)}"
+        end
+
+        def arn_to_get_request(arn)
+          if /arn:[\w-]+:s3:::(?<bucket_name>[^\/]+)\/(?<key>.*)/.match arn
+            result = {:bucket_name => $~[:bucket_name], :key => $~[:key]}
+          else
+            raise "Not Valid ARN: #{arn}"
+          end
+          result
         end
 
       end

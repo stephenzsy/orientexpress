@@ -1,6 +1,9 @@
+require 'tempfile'
+
 require_relative 'gen-rb/article_manager_types'
 
 require_relative 'utils/async_worker'
+require_relative 'archive_file'
 require_relative 'article_manager_base_client'
 
 module ColdBlossom
@@ -21,7 +24,7 @@ module ColdBlossom
 
           handle_validate_request job
           handle_check_archive job
-          handle_retrieve_index job
+          handle_build job
         end
 
         private
@@ -44,8 +47,13 @@ module ColdBlossom
           return unless job[:check_archive]
         end
 
-        def handle_retrieve_index(job)
-          p job
+        def handle_build (job)
+          bundle_date = Time.parse(job[:date])
+          bundle_files = {
+              :index_files => [],
+              :article_files => []
+          }
+          temp_files = []
           begin
             result = @article_manager_client.getDocument(GetDocumentRequest.new do |r|
               r.vendor = job[:vendor]
@@ -55,7 +63,6 @@ module ColdBlossom
               r.outputType = OutputType::TEXT
             end)
             index = JSON.parse result.document, :symbolize_names => true
-            #puts JSON.pretty_generate index
 
             # download index file
             result = @article_manager_client.getDocument(GetDocumentRequest.new do |r|
@@ -65,12 +72,62 @@ module ColdBlossom
               r.datetime = job[:date]
               r.outputType = OutputType::S3_ARN
             end)
-            @cache_manager.download_cached_file :arn, result.document
+
+            index_file = {:handle => Tempfile.new("archive_index_#{bundle_date.strftime '%Y%m%d'}-")}
+            temp_files << index_file[:handle]
+            begin
+              @cache_manager.download_cached_file :arn, result.document, index_file[:handle] do |key, metadata|
+                index_file[:metadata] = metadata.to_h
+                index_file[:key] = key
+              end
+            ensure
+              index_file[:handle].close
+            end
+            bundle_files[:index_files] << index_file
+
+            article_seq = 0
+            index[:articles].each do |article|
+              article_seq += 1
+              break if article_seq > 2 # TODO remove in production
+              request = GetDocumentRequest.new do |r|
+                r.vendor = job[:vendor]
+                r.datetime = job[:date]
+                r.documentType = DocumentType::ARTICLE
+                r.flavor = job[:flavor]
+                r.documentUrl = article[:url]
+                r.outputType = OutputType::S3_ARN
+              end
+              r = @article_manager_client.getDocument request
+
+              article_file = {:handle => Tempfile.new("archive_article_#{bundle_date.strftime '%Y%m%d'}-#{article_seq}-")}
+              temp_files << article_file[:handle]
+              begin
+                @cache_manager.download_cached_file :arn, r.document, article_file[:handle] do |key, metadata|
+                  article_file[:metadata] = metadata.to_h
+                  article_file[:key] = key
+                end
+              ensure
+                article_file[:handle].close
+              end
+              bundle_files[:article_files] << article_file
+              p article_file
+            end
+
+            bundle_archive bundle_files
+
           rescue Exception => e
             p e
             p e.backtrace
             raise e
+          ensure
+            temp_files.each do |file|
+              file.unlink
+            end
           end
+        end
+
+        def bundle_archive(bundle_files)
+          archive_file = ArchiveFile.new
         end
       end
     end
