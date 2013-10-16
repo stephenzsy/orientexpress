@@ -9,7 +9,7 @@ require 'thrift'
 module ColdBlossom
   module Darius
     module Archive
-      class IndexEntry
+      class HeaderSectionEntry
         include ::Thrift::Struct, ::Thrift::Struct_Union
         KEY = 1
         OFFSET = 2
@@ -29,14 +29,14 @@ module ColdBlossom
         ::Thrift::Struct.generate_accessors self
       end
 
-      class IndexSegment
+      class HeaderSection
         include ::Thrift::Struct, ::Thrift::Struct_Union
         NAME = 1
-        INDEX_ENTRIES = 2
+        ENTRIES = 2
 
         FIELDS = {
           NAME => {:type => ::Thrift::Types::STRING, :name => 'name'},
-          INDEX_ENTRIES => {:type => ::Thrift::Types::LIST, :name => 'index_entries', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::IndexEntry}}
+          ENTRIES => {:type => ::Thrift::Types::LIST, :name => 'entries', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::HeaderSectionEntry}}
         }
 
         def struct_fields; FIELDS; end
@@ -65,7 +65,7 @@ module ColdBlossom
         ::Thrift::Struct.generate_accessors self
       end
 
-      class ContentSegment
+      class ContentSection
         include ::Thrift::Struct, ::Thrift::Struct_Union
         FORMAT_CODE = 1
         MATADATA = 2
@@ -89,16 +89,16 @@ module ColdBlossom
         include ::Thrift::Struct, ::Thrift::Struct_Union
         MAGIC = 1
         VERSION = 2
-        INDEX_SECTION_LENGTH = 3
-        INDEX_SEGMENTS = 4
-        CONTENT_SEGMENTS = 5
+        HEADER_LENGTH = 3
+        HEADER_SECTIONS = 4
+        CONTENT_SECTION = 5
 
         FIELDS = {
           MAGIC => {:type => ::Thrift::Types::STRING, :name => 'magic', :binary => true},
           VERSION => {:type => ::Thrift::Types::I32, :name => 'version'},
-          INDEX_SECTION_LENGTH => {:type => ::Thrift::Types::I32, :name => 'index_section_length'},
-          INDEX_SEGMENTS => {:type => ::Thrift::Types::LIST, :name => 'index_segments', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::IndexSegment}},
-          CONTENT_SEGMENTS => {:type => ::Thrift::Types::LIST, :name => 'content_segments', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::ContentSegment}}
+          HEADER_LENGTH => {:type => ::Thrift::Types::I32, :name => 'header_length'},
+          HEADER_SECTIONS => {:type => ::Thrift::Types::LIST, :name => 'header_sections', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::HeaderSection}},
+          CONTENT_SECTION => {:type => ::Thrift::Types::LIST, :name => 'content_section', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::ContentSection}}
         }
 
         def struct_fields; FIELDS; end

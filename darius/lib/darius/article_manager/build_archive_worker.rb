@@ -49,7 +49,7 @@ module ColdBlossom
 
         def handle_build (job)
           bundle_date = Time.parse(job[:date])
-          bundle_files = {
+          bundle = {
               :index_files => [],
               :article_files => []
           }
@@ -83,7 +83,7 @@ module ColdBlossom
             ensure
               index_file[:handle].close
             end
-            bundle_files[:index_files] << index_file
+            bundle[:index_files] << index_file
 
             article_seq = 0
             index[:articles].each do |article|
@@ -109,11 +109,16 @@ module ColdBlossom
               ensure
                 article_file[:handle].close
               end
-              bundle_files[:article_files] << article_file
+              bundle[:article_files] << article_file
               p article_file
             end
 
-            bundle_archive bundle_files
+            bundle_file = Tempfile.new 'archive_bundle'
+            begin
+              Archive::ArchiveFile.write_bundle bundle, bundle_file
+            ensure
+              bundle_file.close
+            end
 
           rescue Exception => e
             p e
@@ -126,9 +131,6 @@ module ColdBlossom
           end
         end
 
-        def bundle_archive(bundle_files)
-          archive_file = ArchiveFile.new
-        end
       end
     end
   end
