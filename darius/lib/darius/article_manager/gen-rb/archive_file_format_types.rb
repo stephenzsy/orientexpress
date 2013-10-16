@@ -47,33 +47,21 @@ module ColdBlossom
         ::Thrift::Struct.generate_accessors self
       end
 
-      class ContentMetadata
-        include ::Thrift::Struct, ::Thrift::Struct_Union
-        KEY = 1
-        VALUE = 2
-
-        FIELDS = {
-          KEY => {:type => ::Thrift::Types::STRING, :name => 'key'},
-          VALUE => {:type => ::Thrift::Types::STRING, :name => 'value'}
-        }
-
-        def struct_fields; FIELDS; end
-
-        def validate
-        end
-
-        ::Thrift::Struct.generate_accessors self
-      end
-
       class ContentSection
         include ::Thrift::Struct, ::Thrift::Struct_Union
-        FORMAT_CODE = 1
-        MATADATA = 2
-        CONTENT = 3
+        SECTION_LENGTH = 1
+        SECTION_HEADER_LENGTH = 2
+        KEY = 3
+        FORMAT_CODE = 4
+        METADATA = 5
+        CONTENT = 6
 
         FIELDS = {
+          SECTION_LENGTH => {:type => ::Thrift::Types::I32, :name => 'section_length'},
+          SECTION_HEADER_LENGTH => {:type => ::Thrift::Types::I32, :name => 'section_header_length'},
+          KEY => {:type => ::Thrift::Types::STRING, :name => 'key'},
           FORMAT_CODE => {:type => ::Thrift::Types::I32, :name => 'format_code'},
-          MATADATA => {:type => ::Thrift::Types::LIST, :name => 'matadata', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::ContentMetadata}},
+          METADATA => {:type => ::Thrift::Types::MAP, :name => 'metadata', :key => {:type => ::Thrift::Types::STRING}, :value => {:type => ::Thrift::Types::STRING}},
           CONTENT => {:type => ::Thrift::Types::STRING, :name => 'content', :binary => true}
         }
 
@@ -91,14 +79,14 @@ module ColdBlossom
         VERSION = 2
         HEADER_LENGTH = 3
         HEADER_SECTIONS = 4
-        CONTENT_SECTION = 5
+        CONTENT_SECTIONS = 5
 
         FIELDS = {
           MAGIC => {:type => ::Thrift::Types::STRING, :name => 'magic', :binary => true},
           VERSION => {:type => ::Thrift::Types::I32, :name => 'version'},
           HEADER_LENGTH => {:type => ::Thrift::Types::I32, :name => 'header_length'},
           HEADER_SECTIONS => {:type => ::Thrift::Types::LIST, :name => 'header_sections', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::HeaderSection}},
-          CONTENT_SECTION => {:type => ::Thrift::Types::LIST, :name => 'content_section', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::ContentSection}}
+          CONTENT_SECTIONS => {:type => ::Thrift::Types::LIST, :name => 'content_sections', :element => {:type => ::Thrift::Types::STRUCT, :class => ::ColdBlossom::Darius::Archive::ContentSection}}
         }
 
         def struct_fields; FIELDS; end

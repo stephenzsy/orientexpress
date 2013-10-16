@@ -18,15 +18,13 @@ struct HeaderSection {
   2: list<HeaderSectionEntry> entries
 }
 
-struct ContentMetadata {
-  1: string key
-  2: string value
-}
-
 struct ContentSection {
-  1: i32 format_code
-  2: list<ContentMetadata> matadata
-  3: binary content
+  1: i32 section_length
+  2: i32 section_header_length
+  3: string key
+  4: i32 format_code
+  5: map<string, string> metadata
+  6: binary content
 }
 
 struct ArchiveFileFormat {
@@ -34,5 +32,5 @@ struct ArchiveFileFormat {
   2: i32 version
   3: i32 header_length
   4: list<HeaderSection> header_sections
-  5: list<ContentSection> content_section
+  5: list<ContentSection> content_sections
 }
