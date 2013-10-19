@@ -174,7 +174,7 @@ module ColdBlossom
                 r.documentUrl = original_request.documentUrl
                 r.datetime = original_request.datetime
                 r.outputType = OutputType::TEXT
-                r.cacheOption = original_request.cacheOption
+                r.cacheOption = CacheOption::DEFAULT
               end
               result = getDocument request
               case job[:document_type]

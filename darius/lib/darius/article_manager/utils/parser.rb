@@ -21,7 +21,10 @@ module ColdBlossom
             def select_set_to_parse(node, selectors)
               node_set = node.css(*selectors)
               begin
-                yield node_set
+                node_set.each do |n|
+                  yield n
+                  ensure_empty_node n
+                end
               ensure
                 node_set.unlink
               end
