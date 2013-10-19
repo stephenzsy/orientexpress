@@ -2,6 +2,7 @@ require 'aws-sdk'
 require 'digest/sha2'
 require 'logger'
 require 'timeout'
+require 'pathname'
 
 require_relative 'utils/configuration_util'
 
@@ -56,7 +57,7 @@ module ColdBlossom
         end
 
         def head_archive(topic, date, opt)
-          s3_key = get_s3_key topic, date.iso8601, opt
+          s3_key = "#{@s3_key_prefix}#{topic}/#{date.strftime '%Y/%m/%d'}"
           req = {:bucket_name => @bucket_name, :key => s3_key}
           begin
             res = @s3_client.head_object req
@@ -164,6 +165,31 @@ module ColdBlossom
             file.write(chunk)
           end
           yield req[:key], s3_obj.metadata
+        end
+
+        def upload_bundle(topic, content_date, bundled_file, opt = {})
+          s3_key = "#{@s3_key_prefix}#{topic}/#{content_date.strftime '%Y/%m/%d'}"
+          opt[:storage_class] ||= 'STANDARD'
+          content_type = 'application/octet-stream'
+          metadata = {}
+          metadata[:bundler_version] = opt[:bundler_version] unless opt[:bundler_version].nil?
+          metadata[:timestamp] = Time.now.utc.iso8601
+          metadata[:content_date] = content_date.iso8601
+          retry_count = 0
+          begin
+            Timeout::timeout(60) do
+              @s3_client.put_object :bucket_name => @bucket_name,
+                                    :key => s3_key,
+                                    :data => Pathname.new(bundled_file),
+                                    :storage_class => opt[:storage_class],
+                                    :content_type => content_type,
+                                    :metadata => metadata
+            end
+          rescue Exception => e
+            retry_count += 1
+            retry unless retry_count > 3
+            raise e
+          end
         end
 
         private

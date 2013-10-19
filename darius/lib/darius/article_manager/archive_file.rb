@@ -23,7 +23,7 @@ module ColdBlossom
 
         def write_to_file(file)
           file_pos_origin = file.pos
-          p self.magic.pack 'cccc'
+          # p self.magic.pack 'cccc'
           file.write self.magic.pack 'cccc'
           len = self.magic.length
           len += write_uint32 self.version, file
@@ -45,18 +45,106 @@ module ColdBlossom
           # backfill fields
           file.seek file_pos_origin, IO::SEEK_SET
           file.seek 8, IO::SEEK_CUR #magic and version
+          write_uint32 self.header_length, file
           backfill_header_sections file
 
           file.seek 4, IO::SEEK_CUR # content_sections size
           self.content_sections.each do |content_section|
-
+            write_uint32 content_section.section_length, file
+            write_uint32 content_section.section_header_length, file
+            file.seek (content_section.section_length - 4), IO::SEEK_CUR
           end
 
-          p self.header_sections
-          p self.content_sections
-          p len
-          p file.length
           len
+        end
+
+        def verify(file)
+          # verification
+          a = self.class.from_file file.path
+          raise "Unmatched Header Length: Expected(#{self.header_length}), Verified(#{a.header_length})" unless self.header_length == a.header_length
+          raise "Unmatched Header Length: Expected(#{self.content_sections.length}), Verified(#{a.content_sections.length})" unless self.content_sections.length == a.content_sections.length
+          a.content_sections.zip(self.content_sections).each do |first, second|
+            #p first.content.length
+            # p second
+            #raise "Unmatched Header Length: Expected(#{first.content.length}), Verified(#{second.content.length})" unless first.content.length == second.content.length
+          end
+        end
+
+        def self.from_file(file_path)
+          a = ArchiveFile.new
+          file = File.open file_path, 'r'
+          a.magic = read_magic file
+          a.version = read_version file
+          a.header_length = read_uint32 file
+          a.header_sections = read_list(file) do
+            header_section = Archive::HeaderSection.new
+            header_section.name = read_string(file)
+            header_section.entries = read_list(file) do
+              entry = Archive::HeaderSectionEntry.new
+              entry.key = read_string file
+              entry.offset = read_uint32 file
+              entry.length = read_uint32 file
+              entry
+            end
+            header_section
+          end
+          a.content_sections = read_list(file) do
+            content_section = Archive::ContentSection.new
+            content_section.section_length = read_uint32 file
+            content_section.section_header_length = read_uint32 file
+            content_section.format_code = read_uint32 file
+            content_section.key = read_string file
+            content_section.metadata = read_string_map file
+            content_section.content = read_deflated_content file
+            content_section
+          end
+          a
+        end
+
+        def self.read_deflated_content file
+          len = read_uint32 file
+          Zlib::Inflate.inflate(file.read(len))
+        end
+
+        def self.read_string_map file
+          result = {}
+          len = read_uint32 file
+          1.upto len do
+            key = read_string(file)
+            value = read_string(file)
+            result[key] = value
+          end
+          result
+        end
+
+        def self.read_list file
+          len = read_uint32 file
+          result = []
+          1.upto len do
+            result << yield
+          end
+          result
+        end
+
+        def self.read_string file
+          len = read_uint32 file
+          file.read(len)
+        end
+
+        def self.read_magic file
+          magic = file.read(4)
+          raise "Invalid File: #{file.path}" unless magic == Archive::MAGIC
+          magic
+        end
+
+        def self.read_version file
+          version = read_uint32 file
+          raise "Invalid File Version :#{version}" unless version == Archive::VERSION
+          version
+        end
+
+        def self.read_uint32 file
+          file.read(4).unpack('L').first
         end
 
         def self.write_bundle(bundle, file)
@@ -86,11 +174,10 @@ module ColdBlossom
         def backfill_header_sections(file)
           file.seek 4, IO::SEEK_CUR
           self.header_sections.each do |section|
-            file.seek(4 + section.name.bytesize() + 4, IO::SEEK_CUR)
+            file.seek(4 + section.name.bytesize() + 4, IO::SEEK_CUR) # skip name length, and cardinality of list
             section.entries.each do |entry|
               backfill_header_section_entry entry, file
             end
-
           end
         end
 
@@ -119,6 +206,7 @@ module ColdBlossom
         def write_file_as_deflate(source_file, target_file)
           source_data = File.read source_file
           target_data = Zlib::Deflate.deflate(source_data)
+          #puts "#{source_file.path} : #{source_file.length}"
           len = 0
           len += write_uint32 target_data.length, target_file
           target_file.write target_data
@@ -129,14 +217,14 @@ module ColdBlossom
         def write_uint32(n, file)
           s = [n].pack 'L'
           file.write s
-          p s
+          #p s
           s.length
         end
 
         def write_string(str, file)
           a = str.bytes
           len = write_uint32 a.length, file
-          p a.pack 'c*'
+          #p a.pack 'c*'
           file.write a.pack 'c*'
           len += a.length
           len
@@ -150,7 +238,7 @@ module ColdBlossom
         end
 
         def backfill_header_section_entry(entry, file)
-          file.seek(4 + entry.key.bytesize, IO::SEEK_CUR)
+          file.seek(4 + entry.key.bytesize, IO::SEEK_CUR) # skip length and key string
           write_uint32 entry.offset, file
           write_uint32 entry.length, file
         end

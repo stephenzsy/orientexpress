@@ -118,8 +118,8 @@ module ColdBlossom
         def test_batch
           request = GetArchiveRequest.new do |r|
             r.vendor = 'wsj'
-            r.flavor = DocumentFlavor::RAW
-            r.date = Time.parse('2011-02-01').iso8601
+            r.flavor = DocumentFlavor::PROCESSED_JSON
+            r.date = Time.parse('2013-10-17').iso8601
           end
 
           handler = ArticleManagerHandler.new @config

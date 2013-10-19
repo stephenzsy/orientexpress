@@ -18,7 +18,6 @@ module ColdBlossom
           DAILY_ARCHIVE_INDEX_PROCESSOR_VERSION = '2013-10-05'
           ARTICLE_PROCESSOR_VERSION = '2013-09-15-04'
           ARTICLE_PROCESSOR_PATCH = 15
-
           TIME_ZONE = ActiveSupport::TimeZone['America/New_York']
 
           def initialize(config)
