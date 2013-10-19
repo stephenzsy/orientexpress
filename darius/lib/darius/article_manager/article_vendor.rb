@@ -3,8 +3,11 @@ module ColdBlossom
     module ArticleManager
 
       class ArticleVendor
+        attr_accessor :allowed_document_versions
+
         def initialize(name)
           @name = name
+          self.allowed_document_versions = nil
         end
 
         def name

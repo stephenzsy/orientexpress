@@ -130,6 +130,7 @@ module ColdBlossom
             when CacheOption::DEFAULT, CacheOption::ONLY_CACHE
               opt = {:cache_partition => job[:cache_partition]}
               opt[:valid_after] = job[:cache_valid_after] unless job[:cache_valid_after].nil?
+              opt[:allowed_document_versions] = job[:vendor].allowed_document_versions
               opt[:metadata_only] = (job[:output_type] == OutputType::S3_ARN)
               job[:cache_status] = @cache_manager.get_document job[:topic], job[:url], opt do |content, metadata, resource_name|
                 job[:content] = content unless content.nil?
@@ -146,7 +147,9 @@ module ColdBlossom
                 else
                   raise ServiceException.new :statusCode => StatusCode::FAULT, :message => "Internal Failure: Unsupported cache status: #{job[:cache_status]}"
               end
-            when CacheOption::REFRESH, CacheOption::NO_CACHE # do nothing
+            when CacheOption::REFRESH
+              job[:external_retrieve] = true
+            when CacheOption::NO_CACHE # do nothing
               job[:external_retrieve] = true
             else
               raise ServiceException.new :statusCode => StatusCode::ERROR, :message => "Invalid Cache Option: #{job[:cache_option]}"

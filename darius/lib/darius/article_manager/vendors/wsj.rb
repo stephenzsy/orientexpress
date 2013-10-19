@@ -14,7 +14,7 @@ module ColdBlossom
           include ArticleManager::Utils::DynamoDBCookieStore
 
           VENDOR_NAME = 'wsj'
-          EXTERNAL_DOCUMENT_VERSION = '2013-09-23'
+          EXTERNAL_DOCUMENT_VERSION = '2013-10-19'
           DAILY_ARCHIVE_INDEX_PROCESSOR_VERSION = '2013-10-05'
           ARTICLE_PROCESSOR_VERSION = '2013-09-15-04'
           ARTICLE_PROCESSOR_PATCH = 15
@@ -23,6 +23,7 @@ module ColdBlossom
           def initialize(config)
             @log = Logger.new(STDOUT)
             @log.level = Logger::DEBUG
+            self.allowed_document_versions = [EXTERNAL_DOCUMENT_VERSION]
 
             super VENDOR_NAME
             set_cookie_store config, self

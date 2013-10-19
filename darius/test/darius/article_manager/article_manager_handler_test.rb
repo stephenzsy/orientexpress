@@ -70,6 +70,7 @@ module ColdBlossom
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
             r.flavor = DocumentFlavor::PROCESSED_JSON
             r.outputType = OutputType::TEXT
+            r.cacheOption = CacheOption::REFRESH
           end
 
           handler = ArticleManagerHandler.new @config
@@ -78,12 +79,14 @@ module ColdBlossom
 
         end
 
-        def _test_getDocument_past
+        def test_getDocument_past
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
-            r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
-            r.flavor = DocumentFlavor::RAW
-            r.datetime = Time.parse('2011-02-01').iso8601
+            r.documentType = DocumentType::ARTICLE
+            r.flavor = DocumentFlavor::PROCESSED_JSON
+            r.datetime = Time.parse('2013-10-16').iso8601
+            r.documentUrl = 'http://online.wsj.com/article/SB10001424052702303680404579141803969939012.html'
+            r.outputType = OutputType::TEXT
             r.cacheOption = CacheOption::REFRESH
           end
 
@@ -115,7 +118,7 @@ module ColdBlossom
         end
 
 
-        def test_batch
+        def _test_batch
           request = GetArchiveRequest.new do |r|
             r.vendor = 'wsj'
             r.flavor = DocumentFlavor::PROCESSED_JSON
@@ -123,6 +126,8 @@ module ColdBlossom
           end
 
           handler = ArticleManagerHandler.new @config
+          result = handler.getArchive request
+          request.date = Time.parse('2013-10-16').iso8601
           result = handler.getArchive request
 
           t = Thread.new do
