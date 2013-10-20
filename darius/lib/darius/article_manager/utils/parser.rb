@@ -43,6 +43,12 @@ module ColdBlossom
               end
             end
 
+            def clear_empty_texts(node)
+              node.xpath('.//text()').each do |t|
+                t.unlink if t.content.strip.empty?
+              end
+            end
+
             def ensure_empty_node(node)
               return true if node.nil?
               if node.text?
@@ -106,7 +112,6 @@ module ColdBlossom
             def parse(node)
               HTMLParser.parse_node(node)
             end
-
 
             def self.parse_attributes(node)
               r = []
