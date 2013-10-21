@@ -49,6 +49,13 @@ module ColdBlossom
               end
             end
 
+            def unlink_empty_nodes(nodes)
+              nodes.each do |n|
+                raise "Not empty node to delete: #{node.inspect}" unless n.children.empty?
+              end
+              nodes.unlink
+            end
+
             def ensure_empty_node(node)
               return true if node.nil?
               if node.text?

@@ -128,7 +128,7 @@ module ColdBlossom
               body = response.body
               body.force_encoding('UTF-8')
               raise 'Invalid UTF-8 Encoding of body' unless body.valid_encoding?
-              yield body, {:document_version => EXTERNAL_DOCUMENT_VERSION}
+              yield body, {:document_version => VendorParsers::WSJ::V20131019::EXTERNAL_DOCUMENT_VERSION}
               break
             end
           end
@@ -151,7 +151,8 @@ module ColdBlossom
                   :summary => p.text
               }
             end
-            yield result, {:document_version => EXTERNAL_DOCUMENT_VERSION, :processor_version => DAILY_ARCHIVE_INDEX_PROCESSOR_VERSION}
+            yield result, {:document_version => VendorParsers::WSJ::V20131019::EXTERNAL_DOCUMENT_VERSION,
+                           :processor_version => VendorParsers::WSJ::V20131019::DAILY_ARCHIVE_INDEX_PROCESSOR_VERSION}
           end
 
           def article_to_json(url, document)
@@ -167,7 +168,9 @@ module ColdBlossom
               r[:url] = url
             end
 
-            yield r, {:document_version => EXTERNAL_DOCUMENT_VERSION, :processor_version => ARTICLE_PROCESSOR_VERSION, :processor_patch => ARTICLE_PROCESSOR_PATCH}
+            yield r, {:document_version => VendorParsers::WSJ::V20131019::EXTERNAL_DOCUMENT_VERSION,
+                      :processor_version => VendorParsers::WSJ::V20131019::ARTICLE_PROCESSOR_VERSION,
+                      :processor_patch => VendorParsers::WSJ::V20131019::ARTICLE_PROCESSOR_PATCH}
           end
 
 

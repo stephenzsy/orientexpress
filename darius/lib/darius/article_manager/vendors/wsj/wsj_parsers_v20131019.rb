@@ -90,21 +90,144 @@ module ColdBlossom
             class BylineParser < HTMLParser
               def parse(node)
                 clear_empty_texts node
-                node.css('span.intro').unlink
-                r = {}
+                r = select_only_node_to_parse node, '.connect.byline-dsk', true do |byline|
+                  result = {}
+                  byline.css('span.intro').unlink
+                  byline.css('.social-dd').each do |social_dd|
+                    author = {}
+                    social_dd.children.each do |d|
+                      if d.matches? 'span.c-name[rel=author][itemprop=author]'
+                        unlink_empty_nodes d.css('> span.bk-box')
+                        texts = d.xpath('./text()')
+                        raise "Invalid text members in span.c-name: #{texts.inspect}" unless texts.size == 1
+                        author[:name] = texts.first.content.strip
+                        d.unlink
+                      else
+                        raise "Invalid node element in .social-dd: #{social_dd.inspect}"
+                      end
+                    end
+                    next if author.empty?
+                    result[:authors] ||= []
+                    result[:authors] << author
+                  end
+                  ensure_empty_node byline
+                  result
+                end
                 ensure_empty_node node
                 r
               end
             end # BylineParser
 
+            class ArticleBodyParser < HTMLParser
+
+              def parse_paragraph(node)
+                if node.text?
+                  begin
+                    t = node.content.strip.gsub(/\s+/, ' ')
+                    return {:_ => t}, t
+                  ensure
+                    node.unlink
+                  end
+                elsif node.comment?
+                  case node.content.strip
+                    when 'module article chiclet',
+                        'up, down, neutral'
+                      # pass
+                      node.unlink
+                      return nil, nil
+                    else
+                      raise "Invalid comment node: #{node.inspect}"
+                  end
+                end
+
+                # pre recursive
+                case node.name
+                  when 'span'
+                    if node.matches? '.article-chiclet'
+                      node.unlink
+                      return nil, nil
+                    end
+                end
+
+                r = []
+                f = []
+                begin
+                  node.children.each do |n|
+                    rr, ff = parse_paragraph n
+                    r << rr unless rr.nil?
+                    f << ff unless ff.nil?
+                  end
+                rescue => e
+                  raise e
+                end
+
+                r = nil if r.empty?
+                r = r.first if r.size == 1
+
+                case node.name
+                  when 'article', 'p'
+                    r = {:_ => r}
+                  when 'strong'
+                    r = {:strong => {:_ => r}}
+                  when 'a'
+                    if node.matches? '.t-company' and node.has_attribute? 'href'
+                      r.merge!({:link => {:url => node.attr('href'), :type => 't-company'}})
+                    elsif node.has_attribute?('href')
+                      begin
+                        case node.attr('href')
+                          when /^mailto:(.*)/
+                            r = {:_ => r, :email => {:address => $~[1]}}
+                          else
+                            r = {:_ => r, :link => {:url => node.attr('href')}}
+                        end
+                      ensure
+                        node.unlink
+                      end
+                    else
+                      raise "Unsupported link: #{node.inspect}"
+                    end
+                  else
+                    p r
+                    raise "Unsupported node: #{node.inspect}"
+                end
+
+                ensure_empty_node node
+                if f.empty?
+                  f = nil
+                elsif f.size == 1
+                  f = f.first
+                end
+                return r, f
+              end
+
+              # end parse_paragraph
+
+              def parse(node)
+                clear_empty_texts node
+                r = {}
+                time_dsk = select_only_node_to_parse node, '.module.datestamp-dsk', false do |n|
+                  r = {:text => n.text.strip}
+                  r[:timestamp] = Time.parse(r[:text]).utc.iso8601
+                  r
+                end
+                r[:body] = select_only_node_to_parse node, 'article.module.articleBody#articleBody[itemprop=articleBody]', false do |body|
+                  rr, ff = parse_paragraph(body)
+                  result = {}
+                  result[:paragraphs] = rr unless rr.nil?
+                  result[:flattened] = ff unless ff.nil?
+                  result
+                end
+                ensure_empty_node node
+                r
+              end
+
+            end # ArticleBodyParser
 
             class ArticleParser < HTMLParser
               @@head_parser = HeadParser.new
               @@article_header_parser = ArticleHeaderParser.new
               @@byline_parser = BylineParser.new
-              #@@head_meta_parser = HeadMetaParser.new
-              #   @@article_headline_box_parser = ArticleHeadlineBoxParser.new
-              #  @@article_page_parser= ArticlePageParser.new
+              @@article_body_parser = ArticleBodyParser.new
 
               def select_article_header_node(node)
                 section = node.css('body.standard .pageFrame.standard .contentFrame section.sector.one').first
@@ -141,25 +264,25 @@ module ColdBlossom
                 data_modules['resp.module.article.ArticleColumnist']
               end
 
-              def select_byline_author_connect_node(node)
+              def select_module_node(node, module_name)
                 section = node.css('body.standard .pageFrame.standard .contentFrame section.sector.two').first
                 column = section.css('> .column.one').first
-                bylines = column.css('[data-module-name="resp.module.article.BylineAuthorConnect"]')
-                raise "Unsupported number of bylines: #{bylines.size}" unless bylines.size == 1
-                byline = bylines.first
+                modules = column.css("[data-module-name=\"#{module_name}\"]")
+                raise "Unsupported number of modules: #{modules.size}" unless modules.size == 1
+                m = modules.first
                 while true
-                  ns = byline.next_sibling
+                  ns = m.next_sibling
                   if ns.text? and ns.content.strip.empty?
                     ns.unlink
                     next
                   end
-                  if ns.comment? and ns.content.strip == 'data-module-name="resp.module.article.BylineAuthorConnect"'
+                  if ns.comment? and ns.content.strip == "data-module-name=\"#{module_name}\""
                     ns.unlink
                     break
                   end
-                  raise 'No end comment for module resp.module.article.BylineAuthorConnect'
+                  raise "No end comment for module resp.module.article.#{module_name}"
                 end
-                byline
+                m
               end
 
 
@@ -177,46 +300,9 @@ module ColdBlossom
                 end
 
                 article[:header] = @@article_header_parser.parse(select_article_header_node(node))
-                article[:by] = @@byline_parser.parse(select_byline_author_connect_node(node))
-
-
-                puts (JSON.pretty_generate article).slice -1024..-1
-                puts '========'
-
-                raise 'Need Developer'
-
-                article_start_flag = false
-                article_end_flag = false
-                no_content = false
-
-                article = []
-                r = select_set_to_parse(node, ['head meta']) do |node_set|
-                  r = []
-                  node_set.each do |n|
-                    nr = @@head_meta_parser.parse(n)
-                    r << nr unless nr.nil?
-                  end
-                  {:head_meta => r}
-                end
-                article << r unless r.nil?
-                select_only_node_to_parse(node, '.articleHeadlineBox', true) do |n|
-                  article += @@article_headline_box_parser.parse n do |state|
-                    article_start_flag = true if state[:article_start_flag]
-                  end
-                end
-                article_story_body_node = node.css('#article_story_body').first
-                if article_story_body_node.nil?
-                  no_content = true
-                  article << {:_nobody => true}
-                else
-                  select_only_node_to_parse article_story_body_node, '.articlePage', true do |article_page_node|
-                    article += @@article_page_parser.parse(article_page_node) do |state|
-                      article_end_flag = true if state[:article_end_flag]
-                    end
-                  end
-                end
-
-                #raise "Improper article start/end flag: start(#{article_start_flag}), end(#{article_end_flag})" unless (article_start_flag and article_end_flag) or no_content
+                byline = @@byline_parser.parse(select_module_node(node, 'resp.module.article.BylineAuthorConnect'))
+                article[:by] = byline unless byline.empty?
+                article.merge! @@article_body_parser.parse(select_module_node(node, 'resp.module.article.articleBody'))
 
                 {:article => article}
               end
