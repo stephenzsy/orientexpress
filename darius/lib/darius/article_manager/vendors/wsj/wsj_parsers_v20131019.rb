@@ -54,6 +54,8 @@ module ColdBlossom
                 texts = node.xpath('./text()')
                 raise "Not simple link: #{node.inspect}" unless texts.size == 1 and node.name = 'a' and node.has_attribute? 'href'
                 r = {:link => node.attr('href'), :text => texts.first.content.strip}
+                texts.unlink
+                raise "Not simple link: #{node.inspect}" if node.children.size > 0
                 node.unlink
                 r
               end
@@ -61,7 +63,10 @@ module ColdBlossom
               def parse_simple_headline_text node
                 texts = node.xpath('./text()')
                 raise "Not simple headline: #{node.inspect}" unless texts.size == 1
+
                 text = texts.first.content.strip
+                texts.unlink
+                raise "Not simple headline: #{node.inspect}" if node.children.size > 0
                 node.unlink
                 text
               end
@@ -70,18 +75,27 @@ module ColdBlossom
                 clear_empty_texts node
                 r = {}
                 r[:category] = select_only_node_to_parse node, 'hgroup.hgroup .header h2.region-cat', false do |region_cat_node|
-                  link = select_only_node_to_parse region_cat_node, 'a', false do |link_node|
+                  rr = select_only_node_to_parse region_cat_node, 'a', true do |link_node|
                     parse_simple_link link_node
                   end
-                  ensure_empty_node region_cat_node
-                  link
+                  if rr.nil?
+                    rr = parse_simple_headline_text region_cat_node
+                  else
+                    ensure_empty_node region_cat_node
+                  end
+                  rr
                 end
                 r[:headline] = select_only_node_to_parse node, 'h1[itemprop=headline]', false do |headline_node|
                   parse_simple_headline_text headline_node
                 end
-                r[:sub_headline] = select_only_node_to_parse node, 'h2.subHed', false do |sub_head_node|
-                  parse_simple_headline_text sub_head_node
+                sub_headline = select_only_node_to_parse node, 'h2.subHed', false do |sub_head_node|
+                  if sub_head_node.children.size > 0
+                    parse_simple_headline_text sub_head_node
+                  else
+                    nil
+                  end
                 end
+                r[:sub_headline] = sub_headline unless sub_headline.nil?
                 ensure_empty_node node
                 r
               end
@@ -92,9 +106,10 @@ module ColdBlossom
                 clear_empty_texts node
                 r = select_only_node_to_parse node, '.connect.byline-dsk', true do |byline|
                   result = {}
-                  byline.css('span.intro').unlink
+                  byline.css('span.intro, span.c-aggregate').unlink
                   byline.css('.social-dd').each do |social_dd|
                     author = {}
+                    social_dd.css('> menu.c-menu').unlink
                     social_dd.children.each do |d|
                       if d.matches? 'span.c-name[rel=author][itemprop=author]'
                         unlink_empty_nodes d.css('> span.bk-box')
@@ -102,8 +117,14 @@ module ColdBlossom
                         raise "Invalid text members in span.c-name: #{texts.inspect}" unless texts.size == 1
                         author[:name] = texts.first.content.strip
                         d.unlink
+                      elsif d.text?
+                        if ['and'].include? d.content.strip
+                          d.unlink
+                        else
+                          raise "Invalid texts in .social-dd: #{d.content}"
+                        end
                       else
-                        raise "Invalid node element in .social-dd: #{social_dd.inspect}"
+                        raise "Invalid node element in .social-dd: #{d.inspect}"
                       end
                     end
                     next if author.empty?
@@ -161,14 +182,19 @@ module ColdBlossom
                   raise e
                 end
 
-                r = nil if r.empty?
-                r = r.first if r.size == 1
+                if r.empty?
+                  r = nil
+                elsif r.size == 1
+                  r = r.first
+                end
 
                 case node.name
                   when 'article', 'p'
                     r = {:_ => r}
-                  when 'strong'
-                    r = {:strong => {:_ => r}}
+                  when 'strong', 'em'
+                    r = {node.name.to_sym => {:_ => r}}
+                  when 'br'
+                    # skip
                   when 'a'
                     if node.matches? '.t-company' and node.has_attribute? 'href'
                       r.merge!({:link => {:url => node.attr('href'), :type => 't-company'}})
@@ -211,6 +237,7 @@ module ColdBlossom
                   r
                 end
                 r[:body] = select_only_node_to_parse node, 'article.module.articleBody#articleBody[itemprop=articleBody]', false do |body|
+                  body.css('.module.rich-media-inset, .module.inset-group, .module.inset-box').unlink
                   rr, ff = parse_paragraph(body)
                   result = {}
                   result[:paragraphs] = rr unless rr.nil?

@@ -36,11 +36,11 @@ module ColdBlossom
 
         end
 
-        def _test_getDocument_article
+        def test_getDocument_articles
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
-            r.datetime = '2009-04-01T08:00:00Z'
+            r.datetime = (Time.now - 2.days).iso8601
             r.flavor = DocumentFlavor::PROCESSED_JSON
             r.outputType = OutputType::TEXT
           end
@@ -59,7 +59,7 @@ module ColdBlossom
               r.outputType = OutputType::TEXT
             end
             result = handler.getDocument request
-            p result
+            #   p result
           end
         end
 
@@ -79,8 +79,8 @@ module ColdBlossom
 
         end
 
-        def test_getDocument_past
-          request = GetDocumentRequest.new do |r|
+        def _test_getDocument_past
+        request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::ARTICLE
             r.flavor = DocumentFlavor::PROCESSED_JSON
