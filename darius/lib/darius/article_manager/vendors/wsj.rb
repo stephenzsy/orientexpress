@@ -28,11 +28,10 @@ module ColdBlossom
           }
 
           def initialize(config)
+            super VENDOR_NAME
             @log = Logger.new(STDOUT)
             @log.level = Logger::DEBUG
             self.allowed_document_versions = ['2013-10-19']
-
-            super VENDOR_NAME
             set_cookie_store config, self
             set_authentication_cookies(get_stored_cookies())
           end
@@ -161,7 +160,7 @@ module ColdBlossom
             if url.start_with? 'http://graphicsweb.wsj.com'
               r = {:domain => 'graphicsweb.wsj.com', :url => url}
             else
-              fix_article_html! document
+              #fix_article_html! document
               doc = Nokogiri::HTML(document)
               p url
               r = ARTICLE_PARSERS[:default].parse(doc)

@@ -189,9 +189,17 @@ module ColdBlossom
                 end
 
                 case node.name
+                  when /^h(\d+)$/
+                    r = {:heading => r, :level => $~[1].to_i}
+                  when 'div'
+                    if node.matches? '.inset-blockquote'
+                      # pass
+                    else
+                      raise "Unsupported span node: #{node.inspect}"
+                    end
                   when 'article', 'p'
                     r = {:_ => r}
-                  when 'strong', 'em'
+                  when 'strong', 'em', 'blockquote'
                     r = {node.name.to_sym => {:_ => r}}
                   when 'br'
                     # skip
@@ -211,6 +219,15 @@ module ColdBlossom
                       end
                     else
                       raise "Unsupported link: #{node.inspect}"
+                    end
+                  when 'span'
+                    if node.matches? '.l-qt, .r-qt'
+                      node.unlink
+                      return nil, nil
+                    elsif node.matches? '.inset-author'
+                      r = {:author => r}
+                    else
+                      raise "Unsupported span node: #{node.inspect}"
                     end
                   else
                     p r
@@ -237,7 +254,12 @@ module ColdBlossom
                   r
                 end
                 r[:body] = select_only_node_to_parse node, 'article.module.articleBody#articleBody[itemprop=articleBody]', false do |body|
-                  body.css('.module.rich-media-inset, .module.inset-group, .module.inset-box').unlink
+                  [
+                      '.module.rich-media-inset', '.module.rich-media-inset-iframe',
+                      '.module.inset-group', '.module.inset-box',
+                      '.module.editors-picks',
+                      'i', 'img'
+                  ].each { |selector| body.css(selector).unlink }
                   rr, ff = parse_paragraph(body)
                   result = {}
                   result[:paragraphs] = rr unless rr.nil?
@@ -328,7 +350,7 @@ module ColdBlossom
 
                 article[:header] = @@article_header_parser.parse(select_article_header_node(node))
                 byline = @@byline_parser.parse(select_module_node(node, 'resp.module.article.BylineAuthorConnect'))
-                article[:by] = byline unless byline.empty?
+                article[:by] = byline unless byline.nil?
                 article.merge! @@article_body_parser.parse(select_module_node(node, 'resp.module.article.articleBody'))
 
                 {:article => article}

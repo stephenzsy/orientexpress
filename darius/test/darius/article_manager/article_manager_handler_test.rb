@@ -40,7 +40,8 @@ module ColdBlossom
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
-            r.datetime = (Time.now - 2.days).iso8601
+            #r.datetime = (Time.now - 2.days).iso8601
+            r.datetime = '2013-10-17T00:00:00-0400'
             r.flavor = DocumentFlavor::PROCESSED_JSON
             r.outputType = OutputType::TEXT
           end

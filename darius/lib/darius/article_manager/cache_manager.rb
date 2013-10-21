@@ -105,7 +105,7 @@ module ColdBlossom
 
             if document_timestamp.nil? or
                 (opt[:valid_after] and document_timestamp < opt[:valid_after]) or
-                (opt[:allowed_document_versions] and opt[:allowed_document_versions].include? document_version)
+                (opt[:allowed_document_versions] and not opt[:allowed_document_versions].include? document_version)
               return :not_valid
             end
 
