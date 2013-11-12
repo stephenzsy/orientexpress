@@ -40,8 +40,8 @@ module ColdBlossom
           request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::DAILY_ARCHIVE_INDEX
-            #r.datetime = (Time.now - 2.days).iso8601
-            r.datetime = '2013-10-17T00:00:00-0400'
+            r.datetime = (Time.now - 5.days).iso8601
+            #r.datetime = '2013-10-17T00:00:00-0400'
             r.flavor = DocumentFlavor::PROCESSED_JSON
             r.outputType = OutputType::TEXT
           end
@@ -51,15 +51,17 @@ module ColdBlossom
           obj = JSON.parse result.document, :symbolize_names => true
           timestamp = result.timestamp
           obj[:articles].each do |article|
-            request = GetDocumentRequest.new do |r|
-              r.vendor = 'wsj'
-              r.datetime = timestamp
-              r.documentType = DocumentType::ARTICLE
-              r.flavor = DocumentFlavor::PROCESSED_JSON
-              r.documentUrl = article[:url]
-              r.outputType = OutputType::TEXT
+            unless article[:url].nil? or article[:url].empty?
+              request = GetDocumentRequest.new do |r|
+                r.vendor = 'wsj'
+                r.datetime = timestamp
+                r.documentType = DocumentType::ARTICLE
+                r.flavor = DocumentFlavor::PROCESSED_JSON
+                r.documentUrl = article[:url]
+                r.outputType = OutputType::TEXT
+              end
+              result = handler.getDocument request
             end
-            result = handler.getDocument request
             #   p result
           end
         end
@@ -81,7 +83,7 @@ module ColdBlossom
         end
 
         def _test_getDocument_past
-        request = GetDocumentRequest.new do |r|
+          request = GetDocumentRequest.new do |r|
             r.vendor = 'wsj'
             r.documentType = DocumentType::ARTICLE
             r.flavor = DocumentFlavor::PROCESSED_JSON

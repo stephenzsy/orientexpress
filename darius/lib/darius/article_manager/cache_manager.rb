@@ -102,10 +102,12 @@ module ColdBlossom
             # to be compatible with older documents
             document_timestamp = Time.parse(metadata[:timestamp]) if metadata[:timestamp]
             document_version = metadata[:document_version]
+            parser_version = metadata[:processor_version]
 
             if document_timestamp.nil? or
                 (opt[:valid_after] and document_timestamp < opt[:valid_after]) or
-                (opt[:allowed_document_versions] and not opt[:allowed_document_versions].include? document_version)
+                (opt[:allowed_document_versions] and not opt[:allowed_document_versions].include? document_version) or
+                (opt[:allowed_processor_versions] and not opt[:allowed_processor_versions].include? parser_version)
               return :not_valid
             end
 

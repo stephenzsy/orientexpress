@@ -10,7 +10,7 @@ module ColdBlossom
 
             EXTERNAL_DOCUMENT_VERSION = '2013-10-19'
             DAILY_ARCHIVE_INDEX_PROCESSOR_VERSION = '2013-10-19'
-            ARTICLE_PROCESSOR_VERSION = '2013-10-19-01'
+            ARTICLE_PROCESSOR_VERSION = '2013-11-11-01'
             ARTICLE_PROCESSOR_PATCH = 1
 
             class HeadParser < HTMLParser
@@ -49,62 +49,23 @@ module ColdBlossom
               end
             end # HeadParser
 
-            class ArticleHeaderParser < HTMLParser
-              def parse_simple_link node
-                texts = node.xpath('./text()')
-                raise "Not simple link: #{node.inspect}" unless texts.size == 1 and node.name = 'a' and node.has_attribute? 'href'
-                r = {:link => node.attr('href'), :text => texts.first.content.strip}
-                texts.unlink
-                raise "Not simple link: #{node.inspect}" if node.children.size > 0
-                node.unlink
-                r
-              end
-
-              def parse_simple_headline_text node
-                texts = node.xpath('./text()')
-                raise "Not simple headline: #{node.inspect}" unless texts.size == 1
-
-                text = texts.first.content.strip
-                texts.unlink
-                raise "Not simple headline: #{node.inspect}" if node.children.size > 0
-                node.unlink
-                text
-              end
-
-              def parse(node)
-                clear_empty_texts node
-                r = {}
-                r[:category] = select_only_node_to_parse node, 'hgroup.hgroup .header h2.region-cat', false do |region_cat_node|
-                  rr = select_only_node_to_parse region_cat_node, 'a', true do |link_node|
-                    parse_simple_link link_node
-                  end
-                  if rr.nil?
-                    rr = parse_simple_headline_text region_cat_node
-                  else
-                    ensure_empty_node region_cat_node
-                  end
-                  rr
-                end
-                r[:headline] = select_only_node_to_parse node, 'h1[itemprop=headline]', false do |headline_node|
-                  parse_simple_headline_text headline_node
-                end
-                sub_headline = select_only_node_to_parse node, 'h2.subHed', false do |sub_head_node|
-                  if sub_head_node.children.size > 0
-                    parse_simple_headline_text sub_head_node
-                  else
-                    nil
-                  end
-                end
-                r[:sub_headline] = sub_headline unless sub_headline.nil?
-                ensure_empty_node node
-                r
-              end
-            end # ArticleHeaderParser
-
             class BylineParser < HTMLParser
+
+              def simple_text?(node)
+                return false unless node.children.size == 1 and node.children.first.text?
+                true
+              end
+
               def parse(node)
                 clear_empty_texts node
                 r = select_only_node_to_parse node, '.connect.byline-dsk', true do |byline|
+                  if simple_text? byline
+                    begin
+                      return byline.xpath('./text()').first.content.strip
+                    ensure
+                      byline.unlink
+                    end
+                  end
                   result = {}
                   byline.css('span.intro, span.c-aggregate').unlink
                   byline.css('.social-dd').each do |social_dd|
@@ -120,8 +81,12 @@ module ColdBlossom
                       elsif d.text?
                         if ['and'].include? d.content.strip
                           d.unlink
+                        elsif /^in (.*)( and)?$/i.match d.content.strip
+                          author[:location] = $~[1].strip
+                          d.unlink
                         else
-                          raise "Invalid texts in .social-dd: #{d.content}"
+                          author[:extra] = d.text.strip
+                          d.unlink
                         end
                       else
                         raise "Invalid node element in .social-dd: #{d.inspect}"
@@ -139,6 +104,73 @@ module ColdBlossom
               end
             end # BylineParser
 
+            class ArticleHeaderParser < HTMLParser
+              @@byline_parser = BylineParser.new
+
+              def parse_simple_link(node)
+                texts = node.xpath('./text()')
+                raise "Not simple link: #{node.inspect}" unless texts.size == 1 and node.name = 'a' and node.has_attribute? 'href'
+                r = {:link => node.attr('href'), :text => texts.first.content.strip}
+                texts.unlink
+                raise "Not simple link: #{node.inspect}" if node.children.size > 0
+                node.unlink
+                r
+              end
+
+              def parse_simple_headline_text(node)
+                texts = node.xpath('./text()')
+                raise "Not simple headline: #{node.inspect}" unless texts.size == 1
+
+                text = texts.first.content.strip
+                texts.unlink
+                raise "Not simple headline: #{node.inspect}" if node.children.size > 0
+                node.unlink
+                text
+              end
+
+              def parse(node)
+                clear_empty_texts node
+                r = {}
+                ['hgroup.hgroup .header h2.region-cat',
+                 'hgroup.hgroup .header h5.region-cat',
+                 'hgroup.columnist-hgroup .columnist-header h2.region-cat'].each do |selector|
+                  category = select_only_node_to_parse node, selector, true do |region_cat_node|
+                    rr = select_only_node_to_parse region_cat_node, 'a', true do |link_node|
+                      parse_simple_link link_node
+                    end
+                    if rr.nil?
+                      rr = parse_simple_headline_text region_cat_node
+                    else
+                      ensure_empty_node region_cat_node
+                    end
+                    rr
+                  end
+
+                  unless category.nil?
+                    r[:categories] ||= []
+                    r[:categories] << category
+                  end
+                end
+                r[:headline] = select_only_node_to_parse node, 'h1[itemprop=headline]', false do |headline_node|
+                  parse_simple_headline_text headline_node
+                end
+                sub_headline = select_only_node_to_parse node, 'h2.subHed', true do |sub_head_node|
+                  if sub_head_node.children.size > 0
+                    parse_simple_headline_text sub_head_node
+                  else
+                    nil
+                  end
+                end
+                r[:sub_headline] = sub_headline unless sub_headline.nil?
+                columnist = select_only_node_to_parse node, 'hgroup.columnist-hgroup .columnist', true do |columnist_node|
+                  @@byline_parser.parse(columnist_node)
+                end
+                r[:by_columnist] = columnist unless columnist.nil?
+                ensure_empty_node node
+                r
+              end
+            end # ArticleHeaderParser
+
             class ArticleBodyParser < HTMLParser
 
               def parse_paragraph(node)
@@ -152,7 +184,8 @@ module ColdBlossom
                 elsif node.comment?
                   case node.content.strip
                     when 'module article chiclet',
-                        'up, down, neutral'
+                        'up, down, neutral',
+                        'T1:M'
                       # pass
                       node.unlink
                       return nil, nil
@@ -205,6 +238,7 @@ module ColdBlossom
                     # skip
                   when 'a'
                     if node.matches? '.t-company' and node.has_attribute? 'href'
+                      r ||= {}
                       r.merge!({:link => {:url => node.attr('href'), :type => 't-company'}})
                     elsif node.has_attribute?('href')
                       begin
@@ -229,6 +263,14 @@ module ColdBlossom
                     else
                       raise "Unsupported span node: #{node.inspect}"
                     end
+                  when 'ul'
+                    if node.matches? '.articleList'
+                      r = {:article_list => r}
+                    else
+                      raise "Unsupported ul node: #{node.inspect}"
+                    end
+                  when 'li'
+                    r = {:item => r}
                   else
                     p r
                     raise "Unsupported node: #{node.inspect}"
@@ -272,6 +314,16 @@ module ColdBlossom
 
             end # ArticleBodyParser
 
+            class ParseException < StandardError
+              attr_accessor :status_code
+
+              def initialize(message, status_code)
+                super message
+                self.status_code = status_code
+              end
+
+            end
+
             class ArticleParser < HTMLParser
               @@head_parser = HeadParser.new
               @@article_header_parser = ArticleHeaderParser.new
@@ -279,7 +331,7 @@ module ColdBlossom
               @@article_body_parser = ArticleBodyParser.new
 
               def select_article_header_node(node)
-                section = node.css('body.standard .pageFrame.standard .contentFrame section.sector.one').first
+                section = node.css('.contentFrame section.sector.one').first
                 header = section.css('header')
                 begin_article_flag = false
                 end_article_flag = false
@@ -317,7 +369,7 @@ module ColdBlossom
                 section = node.css('body.standard .pageFrame.standard .contentFrame section.sector.two').first
                 column = section.css('> .column.one').first
                 modules = column.css("[data-module-name=\"#{module_name}\"]")
-                raise "Unsupported number of modules: #{modules.size}" unless modules.size == 1
+                raise "Unsupported number of modules: #{modules.size} for module name: #{module_name}" unless modules.size == 1
                 m = modules.first
                 while true
                   ns = m.next_sibling
@@ -334,11 +386,13 @@ module ColdBlossom
                 m
               end
 
-
               def parse(node)
                 begin
                   n = node.xpath('/comment()').first
-                  raise "Invalid Page Comment Marker: #{n.inspect}" unless n.content.strip == 'TESLA DESKTOP V1'
+                  if n.nil? or n.content.strip != 'TESLA DESKTOP V1'
+                    e = V20131019::ParseException.new "Invalid Page Comment Marker: #{n.inspect}", :invalid_format
+                    raise e
+                  end
                   n.unlink
                 end
                 article = {}
@@ -348,7 +402,11 @@ module ColdBlossom
                   meta
                 end
 
-                article[:header] = @@article_header_parser.parse(select_article_header_node(node))
+                page_frame = node.css('body .pageFrame').first
+                if page_frame.matches? '.content-interactive'
+                  return {:article => {:error => :no_static_content}}
+                end
+                article.merge! @@article_header_parser.parse(select_article_header_node(page_frame))
                 byline = @@byline_parser.parse(select_module_node(node, 'resp.module.article.BylineAuthorConnect'))
                 article[:by] = byline unless byline.nil?
                 article.merge! @@article_body_parser.parse(select_module_node(node, 'resp.module.article.articleBody'))

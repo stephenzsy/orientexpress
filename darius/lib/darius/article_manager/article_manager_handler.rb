@@ -104,6 +104,9 @@ module ColdBlossom
               datetime = Time.parse request.datetime
               article_info = vendor.get_article_info datetime, request.documentUrl
               job[:datetime] = article_info[:datetime]
+              if article_info[:url].nil? or article_info[:url].empty?
+                raise ServiceException.new :statusCode => StatusCode::ERROR, :message => "Invalid Document URL: #{article_info[:url]}"
+              end
               job[:url] = article_info[:url]
               job[:cache_partition] = article_info[:cache_partition]
             when DocumentType::DAILY_ARCHIVE_INDEX
@@ -131,6 +134,14 @@ module ColdBlossom
               opt = {:cache_partition => job[:cache_partition]}
               opt[:valid_after] = job[:cache_valid_after] unless job[:cache_valid_after].nil?
               opt[:allowed_document_versions] = job[:vendor].allowed_document_versions
+              if job[:document_flavor] == DocumentFlavor::PROCESSED_JSON
+                case job[:document_type]
+                  when DocumentType::DAILY_ARCHIVE_INDEX
+                    opt[:allowed_processor_versions] = job[:vendor].allowed_daily_archive_index_processor_versions
+                  when DocumentType::ARTICLE
+                    opt[:allowed_processor_versions] = job[:vendor].allowed_article_processor_versions
+                end
+              end
               opt[:metadata_only] = (job[:output_type] == OutputType::S3_ARN)
               job[:cache_status] = @cache_manager.get_document job[:topic], job[:url], opt do |content, metadata, resource_name|
                 job[:content] = content unless content.nil?

@@ -22,7 +22,6 @@ module ColdBlossom
           EXTERNAL_DOCUMENT_VERSION = '2013-10-19'
 
           ARTICLE_PARSERS = {
-              '2013-09-23' => VendorParsers::WSJ::V20130923::ArticleParser.new,
               '2013-10-19' => VendorParsers::WSJ::V20131019::ArticleParser.new,
               :default => VendorParsers::WSJ::V20131019::ArticleParser.new
           }
@@ -31,7 +30,9 @@ module ColdBlossom
             super VENDOR_NAME
             @log = Logger.new(STDOUT)
             @log.level = Logger::DEBUG
-            self.allowed_document_versions = ['2013-10-19']
+            self.allowed_document_versions = [VendorParsers::WSJ::V20131019::EXTERNAL_DOCUMENT_VERSION]
+            self.allowed_article_processor_versions = [VendorParsers::WSJ::V20131019::ARTICLE_PROCESSOR_VERSION]
+            self.allowed_daily_archive_index_processor_versions = [VendorParsers::WSJ::V20131019::DAILY_ARCHIVE_INDEX_PROCESSOR_VERSION]
             set_cookie_store config, self
             set_authentication_cookies(get_stored_cookies())
           end
@@ -94,41 +95,45 @@ module ColdBlossom
           end
 
           def get_external_document(url)
-            1.upto(5) do
-              uri = URI(url)
-              response = nil
-              http = Net::HTTP.new(uri.host, uri.port)
-              http.use_ssl = (uri.scheme == 'https')
-              @log.debug(url)
-              http.start do |http|
-                response = http.get(uri.path, {'Cookie' => get_authentication_cookies.join('; ')})
-              end
-              case response.code
-                when '200'
-                when '301'
-                  url = response['location']
-                  raise 'Invalid location' unless URI.parse(url).host().end_with? 'wsj.com'
-                  next
-                when '302'
-                  unless response['set-cookie'].nil?
-                    handle_set_cookie response['set-cookie'] do |cookies|
-                      put_stored_cookies cookies
-                      set_authentication_cookies cookies
+            begin
+              1.upto(5) do
+                uri = URI(url)
+                response = nil
+                http = Net::HTTP.new(uri.host, uri.port)
+                http.use_ssl = (uri.scheme == 'https')
+                @log.debug(url)
+                http.start do |http|
+                  response = http.get(uri.path, {'Cookie' => get_authentication_cookies.join('; ')})
+                end
+                case response.code
+                  when '200'
+                  when '301'
+                    url = response['location']
+                    raise 'Invalid location' unless URI.parse(url).host().end_with? 'wsj.com'
+                    next
+                  when '302'
+                    unless response['set-cookie'].nil?
+                      handle_set_cookie response['set-cookie'] do |cookies|
+                        put_stored_cookies cookies
+                        set_authentication_cookies cookies
+                      end
                     end
-                  end
-                  url = response['location']
-                  raise 'Invalid location' unless URI.parse(url).host().end_with? 'wsj.com'
-                  next
-                else
-                  p response
-                  raise "Fault Retrieve"
+                    url = response['location']
+                    raise 'Invalid location' unless URI.parse(url).host().end_with? 'wsj.com'
+                    next
+                  else
+                    p response
+                    raise "Fault Retrieve"
+                end
+                @log.debug("request DONE")
+                body = response.body
+                body.force_encoding('UTF-8')
+                raise 'Invalid UTF-8 Encoding of body' unless body.valid_encoding?
+                yield body, {:document_version => VendorParsers::WSJ::V20131019::EXTERNAL_DOCUMENT_VERSION}
+                break
               end
-              @log.debug("request DONE")
-              body = response.body
-              body.force_encoding('UTF-8')
-              raise 'Invalid UTF-8 Encoding of body' unless body.valid_encoding?
-              yield body, {:document_version => VendorParsers::WSJ::V20131019::EXTERNAL_DOCUMENT_VERSION}
-              break
+            rescue Exception => e
+              raise "Faulty Retrieve at URL :#{url}\n#{e.backtrace.join("\n")}"
             end
           end
 
@@ -163,7 +168,13 @@ module ColdBlossom
               #fix_article_html! document
               doc = Nokogiri::HTML(document)
               p url
-              r = ARTICLE_PARSERS[:default].parse(doc)
+              r = nil
+              begin
+                r = ARTICLE_PARSERS[:default].parse(doc)
+              rescue VendorParsers::WSJ::V20131019::ParseException => e
+                r ||= {}
+                r[:error] = e.status_code
+              end
               r[:url] = url
             end
 
